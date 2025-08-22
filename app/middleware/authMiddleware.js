@@ -10,21 +10,40 @@ const authRouter = Router();
 authRouter.post("/register", async (req, res) => {
   try {
     await connectDB();
+    const { role } = req.body;
+    let user;
     const userfound = await User.findOne({ email: req.body.email });
     if (userfound) {
       return res.status(400).json({ message: "User already exists" });
     }
     const encryptedPassword = await bcrypt.hash(req.body.password, 10);
-    const user = new User({ ...req.body, password: encryptedPassword });
-    await user.save();
+    user = new User({ ...req.body, password: encryptedPassword });
 
+    await user.save();
     const token = jwt.sign(
-      { userId: user._id, email: user.email, name: user.name },
+      {
+        userId: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
-    res.status(201).json({ message: "user registered succssfully..", token,
-        user: { userId: user._id, email: user.email, name: user.name } });
+
+    const userObj = user.toObject();
+    delete userObj.password;
+    delete userObj.__v;
+
+    res.status(201).json({
+      message: "user registered succssfully..",
+      token,
+      user: {
+        ...userObj,
+        userId: userObj._id,
+        _id: undefined,
+      },
+    });
   } catch (err) {
     console.log(err);
     res
@@ -36,9 +55,10 @@ authRouter.post("/register", async (req, res) => {
 //Logging in..
 authRouter.post("/login", async (req, res) => {
   try {
+    console.log(req.body);
     await connectDB();
-    const user = await User.findOne({ email: req.body.email });
-    
+    let user;
+    user = await User.findOne({ email: req.body.email });
     if (!user) {
       return res
         .status(404)
@@ -51,23 +71,35 @@ authRouter.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    if(user.role !== req.body.role){
-        return res.status(400).json({ message: "You are trying to login in with wrong role.." });
+    if (user.role !== req.body.role) {
+      return res
+        .status(400)
+        .json({ message: "You are trying to login in with wrong role.." });
     }
 
     const token = jwt.sign(
-      { userId: user._id, email: user.email, name: user.name, role: user.role },
+      {
+        userId: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
+    const userObj = user.toObject();
+    delete userObj.password;
+    delete userObj.__v;
 
-    res
-      .status(200)
-      .json({
-        message: "signed in successfully..",
-        token,
-        user: { userId: user._id, email: user.email, name: user.name,role: user.role },
-      });
+    res.status(200).json({
+      message: "signed in successfully..",
+      token,
+      user: {
+        ...userObj,
+        userId: userObj._id,
+        _id: undefined,
+      },
+    });
   } catch (err) {
     console.log(err);
     res
@@ -87,34 +119,48 @@ authRouter.post("/send-mail", async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User email is not valid" });
     }
-    
+
     const info = await sendMailToUser(email, message, sub);
     return res
       .status(200)
-      .json({ success: true, message: "Email sent successfully!", info,user });
+      .json({ success: true, message: "Email sent successfully!", info, user });
   } catch (error) {
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: "Failed to send email",
-        error: error.toString(),
-      });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send email",
+      error: error.toString(),
+    });
   }
 });
 
 authRouter.patch("/update-password/:id", async (req, res) => {
   try {
     await connectDB();
-    const {id} = req.params;
+    const { id } = req.params;
     const { newPassword } = req.body;
     const encryptedPassword = await bcrypt.hash(newPassword, 10);
-    const user = await User.findByIdAndUpdate(id, { password: encryptedPassword });
+    await User.findByIdAndUpdate(id, {
+      password: encryptedPassword,
+    });
     res.status(200).json({ message: "password updated successfully." });
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Failed to password update." });
   }
+});
+
+//auth middleware
+
+authRouter.get("/verify", (req, res) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "No token provided" });
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err)
+      return res.status(403).json({ message: "Invalid or expired token" });
+    res.json({ valid: true, user: decoded });
+  });
 });
 
 export default authRouter;

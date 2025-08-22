@@ -4,6 +4,7 @@ import { createServer } from "http";
 import cookieParser from "cookie-parser";
 import bodyParser from "body-parser";
 import authRouter from "./app/middleware/authMiddleware.js";
+import userRouter from "./app/routes/userRouter.js";
 
 const app = express();
 const server = createServer(app);
@@ -16,8 +17,9 @@ app.use(
     credentials: true,
   })
 );
-
+app.use("/uploads", express.static("uploads"));
 app.use("/auth", authRouter);
+app.use("/user", userRouter);
 server.listen(5000, () => {
   console.log("server is listening on port 5000");
 });
