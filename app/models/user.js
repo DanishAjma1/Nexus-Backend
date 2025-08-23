@@ -11,7 +11,7 @@ const UserSchema = mongoose.Schema({
   isOnline: Boolean,
   startupName: String,
   pitchSummary: String,
-  fundingNeeded: String,
+  fundingNeeded: Number,
   industry: String,
   foundedYear: Number,
   teamSize: Number,
