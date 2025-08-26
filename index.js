@@ -5,6 +5,8 @@ import cookieParser from "cookie-parser";
 import bodyParser from "body-parser";
 import authRouter from "./app/middleware/authMiddleware.js";
 import userRouter from "./app/routes/userRouter.js";
+import enterpreneurRouter from "./app/routes/entrepreneurRouter.js";
+import investorRouter from "./app/routes/investorRouter.js";
 
 const app = express();
 const server = createServer(app);
@@ -20,6 +22,8 @@ app.use(
 app.use("/uploads", express.static("uploads"));
 app.use("/auth", authRouter);
 app.use("/user", userRouter);
+app.use("/entrepreneur", enterpreneurRouter);
+app.use("/investor", investorRouter);
 server.listen(5000, () => {
   console.log("server is listening on port 5000");
 });

@@ -1,14 +1,7 @@
 import mongoose from "mongoose";
 
 const enterprenuerSchema = mongoose.Schema({
-  name: String,
-  email: String,
-  password: String,
-  role: String,
-  avatarUrl: String,
-  location: String,
-  bio: String,
-  isOnline: Boolean,
+  userId:{type:mongoose.Schema.Types.ObjectId,ref:"User"},
   startupName: String,
   pitchSummary: String,
   fundingNeeded: String,
