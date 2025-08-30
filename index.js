@@ -7,9 +7,25 @@ import authRouter from "./app/middleware/authMiddleware.js";
 import userRouter from "./app/routes/userRouter.js";
 import enterpreneurRouter from "./app/routes/entrepreneurRouter.js";
 import investorRouter from "./app/routes/investorRouter.js";
+import socketIo from "socket.io";
 
 const app = express();
 const server = createServer(app);
+
+const IO = socketIo(server,{
+  cors:({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+});
+
+IO.on("connection",(socket)=>{
+  console.log("new client connected with socketId : "+socket.id);
+
+  socket.on("join",(userId)=>{
+    
+  })
+})
 
 app.use(cookieParser());
 app.use(bodyParser.json());
