@@ -4,13 +4,31 @@ import Conversation from "../models/conversation.js";
 
 const conversationRouter = Router();
 
-conversationRouter.get("/get-conversations-for-user/:id", async (req, res) => {
+conversationRouter.get("/get-conversations-for-user", async (req, res) => {
+  let updateConversationMessage = null;
   try {
     await connectDB();
-    const { id } = req.params;
-    const filter = { senderId: id };
+    const { currentUserId, partnerId } = req.query;
+    const filter = { senderId: currentUserId };
     const conversation = await Conversation.findOne(filter);
-    res.status(200).json({ conversation } || null);
+
+    if (conversation) {
+      const updatedConversationIndex = conversation.participants.findIndex(
+        (part) => {
+          return part.receiverId === partnerId;
+        }
+      );
+
+      if (updatedConversationIndex !== -1) {
+        updateConversationMessage = {
+          ...conversation.participants[updatedConversationIndex].lastMessage,
+          isRead: true,
+        };
+        conversation.participants[updatedConversationIndex].lastMessage = updateConversationMessage;
+      }
+    }
+    await conversation.save();
+    res.status(200).json({ conversation });
   } catch (error) {
     res.status(400).json(error.message);
   }
@@ -19,10 +37,10 @@ conversationRouter.get("/get-conversations-for-user/:id", async (req, res) => {
 conversationRouter.post("/update-conversations-for-user", async (req, res) => {
   try {
     await connectDB();
-    const { senderId, receiverId, lastMessage } = req.body;
+    const { sender, receiver, lastMessage } = req.body;
 
-    const filterForSender = { senderId: senderId };
-    const filterForReceiver = { senderId: receiverId };
+    const filterForSender = { senderId: sender };
+    const filterForReceiver = { senderId: receiver };
 
     let conversationForSender = await Conversation.findOne(filterForSender);
     let conversationForReceiver = await Conversation.findOne(filterForReceiver);
@@ -30,46 +48,46 @@ conversationRouter.post("/update-conversations-for-user", async (req, res) => {
     if (!conversationForSender) {
       // Create a new conversationForSender
       conversationForSender = new Conversation({
-        senderId: senderId,
-        participants: [{ receiverId, lastMessage: { ...lastMessage } }],
+        senderId: sender,
+        participants: [{ receiverId: receiver, lastMessage }],
       });
     } else {
       // Update existing conversation
       const senderIndex = conversationForSender.participants.findIndex(
-        (partner) => partner.receiverId === receiverId
+        (partner) => partner.receiverId === receiver
       );
       if (senderIndex === -1) {
         conversationForSender.participants.push({
-          senderId: receiverId,
-          lastMessage: { ...lastMessage },
+          receiverId: receiver,
+          lastMessage,
         });
       } else {
-        conversationForSender.participants[senderIndex].lastMessage = {
-          ...lastMessage,
-        };
+        const updatedLastMessage = { ...lastMessage, time: Date.now() };
+        conversationForSender.participants[senderIndex].lastMessage =
+          updatedLastMessage;
       }
     }
 
     if (!conversationForReceiver) {
       // Create a new conversation For Receiver
       conversationForReceiver = new Conversation({
-        senderId: receiverId,
-        participants: [{ receiverId: senderId, lastMessage: { ...lastMessage } }],
+        senderId: receiver,
+        participants: [{ receiverId: sender, lastMessage }],
       });
     } else {
       // Update existing conversation For Receiver
       const receiverIndex = conversationForReceiver.participants.findIndex(
-        (partner) => partner.receiverId === senderId
+        (partner) => partner.receiverId === sender
       );
       if (receiverIndex === -1) {
         conversationForReceiver.participants.push({
-          senderId: senderId,
-          lastMessage: { ...lastMessage },
+          receiverId: sender,
+          lastMessage,
         });
       } else {
-        conversationForReceiver.participants[receiverIndex].lastMessage = {
-          ...lastMessage,
-        };
+        const updatedLastMessage = { ...lastMessage, time: Date.now() };
+        conversationForReceiver.participants[receiverIndex].lastMessage =
+          updatedLastMessage;
       }
     }
 

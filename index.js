@@ -51,6 +51,21 @@ IO.on("connection", (socket) => {
     }
   });
 
+  //when user typing
+  socket.on("typing",async(receiverId)=>{
+    console.log(receiverId)
+    try {
+      const socketReceiverId = await pubClient.get(`user:${receiverId}`);
+      if(socketReceiverId){
+        socket.to(socketReceiverId).emit("is-typing");
+      }else{
+        console.log("user is offline");
+      }
+    } catch (error) {
+      console.error("Redis error while typing:", err);
+    }
+  })
+
   // when user says hi
   socket.on("say-hi", async (receiverId) => {
     try {
@@ -90,6 +105,7 @@ IO.on("connection", (socket) => {
           await pubClient.del(key);
           const userId = key.split(":")[1];
           await setOnline(userId, false);
+          socket.emit("check-user-status");
           console.log("client removed: " + key);
         }
       }
