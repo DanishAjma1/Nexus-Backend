@@ -86,7 +86,11 @@ userRouter.get("/get-user-by-id/:id", async (req, res) => {
 export const setOnline = async (userId,status) => {
   try {
     await connectDB();
-    await User.findByIdAndUpdate(userId, { isOnline: status });
+    const user = await User.findByIdAndUpdate(userId, { isOnline: status });
+    if(user.isOnline)
+      return true;
+    else
+      return false;
   } catch (err) {
     console.error(err);
   }
