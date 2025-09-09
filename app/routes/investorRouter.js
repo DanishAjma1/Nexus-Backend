@@ -83,7 +83,7 @@ investorRouter.get("/get-investor-by-id/:id", async (req, res) => {
         },
       },
     ]);
-
+    console.log(investor);
     res.status(200).json({ investor: investor[0] || null });
   } catch (err) {
     res.status(400).json(err.message);

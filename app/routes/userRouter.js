@@ -17,7 +17,9 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + "-" + file.originalname);
   },
 });
+
 const upload = multer({ storage });
+
 userRouter.post(
   "/update-profile/:id",
   upload.single("avatarUrl"),
@@ -66,5 +68,32 @@ userRouter.post(
   }
 );
 
+userRouter.get("/get-user-by-id/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await connectDB();
+    const filter = {
+      _id: id,
+    };
+    const user = await User.findOne(filter).select("-password");
+    res.status(200).json({ user });
+  } catch (error) {
+    console.log(error.message);
+    res.status(400).json(error.message);
+  }
+});
+
+export const setOnline = async (userId,status) => {
+  try {
+    await connectDB();
+    const user = await User.findByIdAndUpdate(userId, { isOnline: status });
+    if(user.isOnline)
+      return true;
+    else
+      return false;
+  } catch (err) {
+    console.error(err);
+  }
+};
 
 export default userRouter;
