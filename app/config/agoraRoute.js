@@ -14,8 +14,8 @@ agoraRouter.get("/rtc/:channel/:uid", (req, res) => {
     const expirationTimeInSeconds = 3600; // 1 hour
     const currentTimestamp = Math.floor(Date.now() / 1000);
     const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
-    console.log(uid + "  " + channelName + " " + APP_ID);
-
+    console.log();
+    uid + "  " + channelName + " " + APP_ID;
     const token = RtcTokenBuilder.buildTokenWithUid(
       APP_ID,
       APP_CERTIFICATE,
