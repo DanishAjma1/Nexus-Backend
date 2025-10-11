@@ -22,12 +22,19 @@ UserSchema.methods.safeDataForAuth = function () {
 
 UserSchema.methods.afterLoggedSafeData = function () {
     const userObj = this.toObject();
-    userObj.userId = this._id
+    userObj.userId = this._id;
     delete userObj.password;
     delete userObj.__v;
     delete userObj._id;
     return userObj;
 };
 
+UserSchema.methods.afterLoggedSafeDataForOauth = function () {
+    const userObj = this.toObject();
+    userObj.userId = this._id;
+    delete userObj.__v;
+    delete userObj._id;
+    return userObj;
+};
 const User = mongoose.model("User", UserSchema);
 export default User;

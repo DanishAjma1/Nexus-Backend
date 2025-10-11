@@ -89,6 +89,47 @@ authRouter.post("/login", async (req, res) => {
   }
 });
 
+authRouter.post("/login-with-oauth", async (req, res) => {
+  try {
+    await connectDB();
+    const { userToken, role } = req.body;
+    const userInfo = jwt.verify(userToken, process.env.JWT_SECRET);
+    
+    let user = await User.findOne({email:userInfo.email});
+    if (!user) {
+      user = new User({
+        name: userInfo.name,
+        email: userInfo.email,
+        role: role,
+      });
+      await user.save();
+    } else {
+      if (user.role !== req.body.role) {
+        return res
+          .status(400)
+          .json({ message: "You are trying to login in with wrong role.." });
+      }
+    }
+
+    const userObjectForToken = user.safeDataForAuth();
+    const token = jwt.sign(userObjectForToken, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+
+    const userObj = user.afterLoggedSafeDataForOauth();
+    res.status(200).json({
+      message: "signed in successfully..",
+      token,
+      user: { ...userObj },
+    });
+  } catch (err) {
+    console.log(err);
+    res
+      .status(400)
+      .json({ message: "bad request while signing it.." + err.message });
+  }
+});
+
 // Sending email for forgot password...
 authRouter.post("/send-mail", async (req, res) => {
   const { email, message, sub } = req.body;

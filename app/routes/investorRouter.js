@@ -22,7 +22,6 @@ investorRouter.get("/get-investors", async (req, res) => {
             { $match: { $expr: { $eq: ["$userId", "$$user_id"] } } },
             {
               $project: {
-                userId:1,
                 investmentInterests: 1,
                 investmentStage: 1,
                 totalInvestments: 1,
@@ -40,6 +39,11 @@ investorRouter.get("/get-investors", async (req, res) => {
           path: "$investorInfo",
           preserveNullAndEmptyArrays: true,
         },
+      },
+      {
+        $addFields:{
+          userId:"$_id"
+        }
       },
       {
         $replaceRoot: {
