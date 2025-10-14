@@ -11,7 +11,7 @@ import messageRouter from "./app/routes/messageRouter.js";
 import conversationRouter from "./app/routes/conversationRouter.js";
 import { SocketListeners } from "./app/utils/socketListeners.js";
 import collaborationRouter from "./app/routes/collaborationRouter.js";
-
+import adminRouter from "./app/routes/adminRouter.js";
 const app = express();
 const server = createServer(app);
 
@@ -33,6 +33,7 @@ app.use("/message", messageRouter);
 app.use("/user", userRouter);
 app.use("/entrepreneur", enterpreneurRouter);
 app.use("/investor", investorRouter);
+app.use("/admin", adminRouter);
 server.listen(5000, () => {
   console.log("server is listening on port 5000");
 });
