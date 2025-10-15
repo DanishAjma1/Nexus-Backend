@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const UserSchema = mongoose.Schema({
+const UserSchema = new mongoose.Schema({
   name: String,
   email: String,
   password: String,
@@ -8,7 +8,7 @@ const UserSchema = mongoose.Schema({
   avatarUrl: String,
   location: String,
   bio: String,
-  isOnline: Boolean,
+  isOnline: { type: Boolean, default: false },
   startupName: String,
   pitchSummary: String,
   fundingNeeded: Number,
@@ -21,7 +21,15 @@ const UserSchema = mongoose.Schema({
   totalInvestments: Number,
   minimumInvestment: String,
   maximumInvestment: String,
-});
+
+  
+  lastLoginTime: { type: Date },
+  lastLogoutTime: { type: Date },
+  totalSessionDuration: { type: Number, default: 0 }, 
+lastLogoutDuration: { type: Number, default: 0 },
+
+}); 
+
 
 const User = mongoose.model("User", UserSchema);
 export default User;

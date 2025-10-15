@@ -52,12 +52,16 @@ adminRouter.get("/dashboard", async (req, res) => {
 adminRouter.get("/users", async (req, res) => {
   try {
     await connectDB();
-    const users = await User.find({}, "-password");
+    const users = await User.find(
+  {},
+  "name email role lastLoginTime lastLogoutTime totalSessionDuration lastLogoutDuration"
+);
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch users", error });
   }
 });
+
 
 adminRouter.delete("/user/:id", async (req, res) => {
   try {
@@ -129,26 +133,6 @@ adminRouter.put("/campaigns/:id/status", async (req, res) => {
     res.status(200).json(updated);
   } catch (error) {
     res.status(500).json({ message: "Failed to update campaign status", error });
-  }
-});
-
-
-adminRouter.get("/users/entrepreneurs", async (req, res) => {
-  try {
-    await connectDB();
-    const entrepreneurs = await User.find({ role:"entrepreneur" }, "-password");
-    res.status(200).json(entrepreneurs);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch entrepreneurs", error });
-  }
-});
-adminRouter.get("/users/investors", async (req, res) => {
-  try {
-    await connectDB();
-    const investors = await User.find({ role: "investor" }, "-password");
-    res.status(200).json(investors);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch investors", error });
   }
 });
 
