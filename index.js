@@ -12,8 +12,8 @@ import conversationRouter from "./app/routes/conversationRouter.js";
 import { SocketListeners } from "./app/utils/socketListeners.js";
 import collaborationRouter from "./app/routes/collaborationRouter.js";
 import agoraRouter from "./app/config/agoraRoute.js";
-import linkedinRouter from "./app/routes/linkedInOauthRouter.js";
 import googleRouter from "./app/routes/googleOauthRouter.js";
+import linkedinRouter from "./app/routes/linkedInoAuthRouter.js";
 const app = express();
 const server = createServer(app);
 

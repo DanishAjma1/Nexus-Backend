@@ -22,12 +22,12 @@ enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
             { $match: { $expr: { $eq: ["$userId", "$$user_id"] } } },
             {
               $project: {
-                startupName:1,
-                industry:1,
-                foundedYear:1,
-                pitchSummary:1,
-                fundingNeeded:1,
-                teamSize:1,
+                startupName: 1,
+                industry: 1,
+                foundedYear: 1,
+                pitchSummary: 1,
+                fundingNeeded: 1,
+                teamSize: 1,
               },
             },
           ],
@@ -41,9 +41,9 @@ enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
         },
       },
       {
-        $addFields:{
-          userId:"$_id",
-        }
+        $addFields: {
+          userId: "$_id",
+        },
       },
       {
         $replaceRoot: {
@@ -54,9 +54,9 @@ enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
       },
       {
         $project: {
-          password:0,
-          __v:0,
-          _id:0,
+          password: 0,
+          __v: 0,
+          _id: 0,
           userInfo: 0,
         },
       },
@@ -101,6 +101,9 @@ enterpreneurRouter.get("/get-entrepreneur-by-id/:id", async (req, res) => {
       },
       {
         $project: {
+          password: 0,
+          __v: 0,
+          _id: 0,
           userInfo: 0,
         },
       },
@@ -135,5 +138,30 @@ enterpreneurRouter.put("/update-profile/:id", async (req, res) => {
     res.status(400).json(err.message);
   }
 });
+
+enterpreneurRouter.get("/get-successful-entrepreneurs", async (req, res) => {
+  try {
+    await connectDB();
+    const entrepreneurs = await Enterprenuer.find({})
+      .sort({ foundedYear: -1, teamSize: -1 })
+      .limit(3);
+    res.json(entrepreneurs);
+  } catch (error) {
+    res.status(400).json(error.message);
+  }
+});
+
+enterpreneurRouter.get("/get-successful-entrepreneurs", async (req, res) => {
+  try {
+    await connectDB();
+    const entrepreneurs = await Enterprenuer.find({})
+      .sort({ foundedYear: -1, teamSize: -1 })
+      .limit(3);
+    res.json(entrepreneurs);
+  } catch (error) {
+    res.status(400).json(error.message);
+  }
+});
+
 
 export default enterpreneurRouter;
