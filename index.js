@@ -14,6 +14,7 @@ import collaborationRouter from "./app/routes/collaborationRouter.js";
 import agoraRouter from "./app/config/agoraRoute.js";
 import googleRouter from "./app/routes/googleOauthRouter.js";
 import linkedinRouter from "./app/routes/linkedInoAuthRouter.js";
+import adminRouter from "./app/routes/adminRouter.js";
 const app = express();
 const server = createServer(app);
 
@@ -39,6 +40,7 @@ app.use("/user", userRouter);
 app.use("/entrepreneur", enterpreneurRouter);
 app.use("/investor", investorRouter);
 app.use("/agora", agoraRouter);
+app.use("/admin", adminRouter);
 server.listen(5000, () => {
   console.log("server is listening on port 5000");
 });
