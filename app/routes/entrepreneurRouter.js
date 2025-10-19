@@ -1,18 +1,18 @@
 import { Router } from "express";
 import User from "../models/user.js";
 import { connectDB } from "../config/mongoDBConnection.js";
-import Enterprenuer from "../models/enterpreneur.js";
+import Enterpreneurs from "../models/enterpreneur.js";
 import mongoose from "mongoose";
 
 const enterpreneurRouter = Router();
+
+
 enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
   try {
     await connectDB();
     const entrepreneurs = await User.aggregate([
       {
-        $match: {
-          role: "entrepreneur",
-        },
+        $match: { role: "entrepreneur" },
       },
       {
         $lookup: {
@@ -28,6 +28,11 @@ enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
                 pitchSummary: 1,
                 fundingNeeded: 1,
                 teamSize: 1,
+                revenue: 1,
+                profitMargin: 1,
+                growthRate: 1,
+                marketOpportunity: 1,
+                advantage: 1,
               },
             },
           ],
@@ -42,7 +47,7 @@ enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
       },
       {
         $addFields: {
-          userId: "$_id",
+          userId: "$_id", 
         },
       },
       {
@@ -63,14 +68,17 @@ enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
     ]);
     res.status(200).json({ entrepreneurs });
   } catch (err) {
-    res.status(400).json({ message: err });
+    console.error("Error fetching entrepreneurs:", err);
+    res.status(400).json({ message: err.message });
   }
 });
+
 
 enterpreneurRouter.get("/get-entrepreneur-by-id/:id", async (req, res) => {
   try {
     await connectDB();
     const { id } = req.params;
+
     const entrepreneur = await User.aggregate([
       {
         $match: {
@@ -93,6 +101,11 @@ enterpreneurRouter.get("/get-entrepreneur-by-id/:id", async (req, res) => {
         },
       },
       {
+        $addFields: {
+          userId: "$_id", 
+        },
+      },
+      {
         $replaceRoot: {
           newRoot: {
             $mergeObjects: ["$$ROOT", "$userInfo"],
@@ -103,65 +116,59 @@ enterpreneurRouter.get("/get-entrepreneur-by-id/:id", async (req, res) => {
         $project: {
           password: 0,
           __v: 0,
-          _id: 0,
           userInfo: 0,
+          _id: 0,
         },
       },
     ]);
 
     res.status(200).json({ entrepreneur: entrepreneur[0] || null });
   } catch (err) {
-    res.status(400).json(err.message);
+    console.error("Error fetching entrepreneur by ID:", err);
+    res.status(400).json({ message: err.message });
   }
 });
+
+
 enterpreneurRouter.put("/update-profile/:id", async (req, res) => {
   try {
     await connectDB();
     const { id } = req.params;
-    const filter = { userId: id };
 
-    const update = {
-      ...req.body,
-    };
-    const options = {
-      new: true,
-      upsert: true,
-      runValidators: true,
-    };
-    const entrepreneur = await Enterprenuer.findOneAndUpdate(
+   
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid userId" });
+    }
+
+    const filter = { userId: id };
+    const update = { ...req.body };
+    const options = { new: true, upsert: true, runValidators: true };
+
+    const entrepreneur = await Enterpreneurs.findOneAndUpdate(
       filter,
       update,
       options
     );
+
     res.status(200).json(entrepreneur);
   } catch (err) {
-    res.status(400).json(err.message);
+    console.error("Error updating entrepreneur:", err);
+    res.status(400).json({ message: err.message });
   }
 });
+
 
 enterpreneurRouter.get("/get-successful-entrepreneurs", async (req, res) => {
   try {
     await connectDB();
-    const entrepreneurs = await Enterprenuer.find({})
+    const entrepreneurs = await Enterpreneurs.find({})
       .sort({ foundedYear: -1, teamSize: -1 })
       .limit(3);
-    res.json(entrepreneurs);
+    res.status(200).json(entrepreneurs);
   } catch (error) {
-    res.status(400).json(error.message);
+    console.error("Error fetching successful entrepreneurs:", error);
+    res.status(400).json({ message: error.message });
   }
 });
-
-enterpreneurRouter.get("/get-successful-entrepreneurs", async (req, res) => {
-  try {
-    await connectDB();
-    const entrepreneurs = await Enterprenuer.find({})
-      .sort({ foundedYear: -1, teamSize: -1 })
-      .limit(3);
-    res.json(entrepreneurs);
-  } catch (error) {
-    res.status(400).json(error.message);
-  }
-});
-
 
 export default enterpreneurRouter;

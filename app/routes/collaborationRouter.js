@@ -45,8 +45,8 @@ collaborationRouter.put(
   async (req, res) => {
     try {
       await connectDB();
-      const { requestId,newStatus } = req.body;
-      const filter = { _id:requestId };
+      const { requestId, newStatus } = req.body;
+      const filter = { _id: requestId };
       const request = await CollaborationRequest.findOne(filter);
       request.requestStatus = newStatus;
       await request.save();
