@@ -11,7 +11,7 @@ authRouter.post("/register", async (req, res) => {
   try {
     await connectDB();
     const { role } = req.body;
-    if (role === "investor" || role === "entrepreneur") {
+    if (role === "investor" || role === "entrepreneur" || role === "admin" ) {
       const filter = { role: req.body.role, email: req.body.email };
       const userfound = await User.findOne(filter);
 

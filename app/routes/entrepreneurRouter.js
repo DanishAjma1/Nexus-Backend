@@ -93,6 +93,11 @@ enterpreneurRouter.get("/get-entrepreneur-by-id/:id", async (req, res) => {
         },
       },
       {
+        $addFields: {
+          userId: "$_id",
+        },
+      },
+      {
         $replaceRoot: {
           newRoot: {
             $mergeObjects: ["$$ROOT", "$userInfo"],
@@ -162,6 +167,5 @@ enterpreneurRouter.get("/get-successful-entrepreneurs", async (req, res) => {
     res.status(400).json(error.message);
   }
 });
-
 
 export default enterpreneurRouter;
