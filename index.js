@@ -41,6 +41,7 @@ app.use("/entrepreneur", enterpreneurRouter);
 app.use("/investor", investorRouter);
 app.use("/agora", agoraRouter);
 app.use("/admin", adminRouter);
+
 server.listen(5000, () => {
   console.log("server is listening on port 5000");
 });

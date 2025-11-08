@@ -9,18 +9,6 @@ const UserSchema = mongoose.Schema({
   location: String,
   bio: String,
   isOnline: Boolean,
-  startupName: String,
-  pitchSummary: String,
-  fundingNeeded: Number,
-  industry: String,
-  foundedYear: Number,
-  teamSize: Number,
-  investmentInterests: Array,
-  investmentStage: Array,
-  portfolioCompanies: Array,
-  totalInvestments: Number,
-  minimumInvestment: String,
-  maximumInvestment: String,
 });
 
 UserSchema.methods.safeDataForAuth = function () {
