@@ -46,8 +46,8 @@ export const startCampaignChecker = () => {
   // Run once on startup
   checkExpiredCampaigns();
   
-  const INTERVAL = 60 * 1000;
+  const INTERVAL = 15 * 60 * 1000;
   setInterval(checkExpiredCampaigns, INTERVAL);
   
-  console.log(`[CampaignChecker] Background task started. Interval: ${INTERVAL / 1000} seconds.`);
+  console.log(`[CampaignChecker] Background task started. Interval: ${INTERVAL / 1000 / 60} seconds.`);
 };

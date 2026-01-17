@@ -19,6 +19,13 @@ const enterprenuerSchema = mongoose.Schema({
     enum: ['pending', 'approved', 'rejected'],
     default: 'pending'
   },
+  team: [
+    {
+      name: String,
+      role: [String],
+      avatarUrl: String,
+    }
+  ],
 });
 
 const Enterprenuer = mongoose.model("Enterpreneur", enterprenuerSchema);

@@ -3,6 +3,23 @@ import User from "../models/user.js";
 import { connectDB } from "../config/mongoDBConnection.js";
 import Enterprenuer from "../models/enterpreneur.js";
 import mongoose from "mongoose";
+import multer from "multer";
+import fs from "fs";
+
+//  Multer Storage (Same as userRouter)
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = "uploads/";
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
+const upload = multer({ storage });
 
 const enterpreneurRouter = Router();
 enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
@@ -182,5 +199,120 @@ enterpreneurRouter.get("/get-successful-entrepreneurs", async (req, res) => {
     res.status(400).json(error.message);
   }
 });
+
+// --- Team Management Endpoints ---
+
+// Add Team Member
+enterpreneurRouter.post(
+  "/add-team-member/:id",
+  upload.single("avatarUrl"),
+  async (req, res) => {
+    try {
+      await connectDB();
+      const { id } = req.params;
+      const { name, role } = req.body; // role can be string or array
+
+      let uri = "";
+      if (req.file) {
+        uri = `${req.protocol}://${req.get("host")}/${req.file.destination}${
+          req.file.filename
+        }`;
+      }
+
+      // Ensure roles is array
+      const rolesArray = Array.isArray(role) ? role : [role];
+
+      const newMember = {
+        name,
+        role: rolesArray,
+        avatarUrl: uri,
+      };
+
+      const entrepreneur = await Enterprenuer.findOneAndUpdate(
+        { userId: id },
+        { $push: { team: newMember } },
+        { new: true, upsert: true }
+      );
+
+      // Also update teamSize if needed, or let it be manual
+       // Option: Increment teamSize automatically
+      entrepreneur.teamSize = (entrepreneur.teamSize || 0) + 1;
+      await entrepreneur.save();
+
+      res.status(200).json(entrepreneur);
+    } catch (err) {
+      console.error(err);
+      res.status(400).json(err.message);
+    }
+  }
+);
+
+// Update Team Member
+enterpreneurRouter.put(
+  "/update-team-member/:id/:memberId",
+  upload.single("avatarUrl"),
+  async (req, res) => {
+    try {
+      await connectDB();
+      const { id, memberId } = req.params;
+      const { name, role } = req.body;
+
+      let updateFields = {};
+      if (name) updateFields["team.$.name"] = name;
+      if (role) {
+         updateFields["team.$.role"] = Array.isArray(role) ? role : [role];
+      }
+
+      if (req.file) {
+        const uri = `${req.protocol}://${req.get("host")}/${req.file.destination}${
+          req.file.filename
+        }`;
+        updateFields["team.$.avatarUrl"] = uri;
+      }
+
+      const entrepreneur = await Enterprenuer.findOneAndUpdate(
+        { userId: id, "team._id": memberId },
+        { $set: updateFields },
+        { new: true }
+      );
+
+      if (!entrepreneur) {
+          return res.status(404).json({message: "Entrepreneur or team member not found"});
+      }
+
+      res.status(200).json(entrepreneur);
+    } catch (err) {
+      console.error(err);
+      res.status(400).json(err.message);
+    }
+  }
+);
+
+// Delete Team Member
+enterpreneurRouter.delete(
+  "/delete-team-member/:id/:memberId",
+  async (req, res) => {
+    try {
+      await connectDB();
+      const { id, memberId } = req.params;
+
+      const entrepreneur = await Enterprenuer.findOneAndUpdate(
+        { userId: id },
+        { $pull: { team: { _id: memberId } } },
+        { new: true }
+      );
+      
+      if (entrepreneur) {
+           entrepreneur.teamSize = Math.max(0, (entrepreneur.teamSize || 1) - 1);
+           await entrepreneur.save();
+      }
+
+      res.status(200).json(entrepreneur);
+    } catch (err) {
+      console.error(err);
+      res.status(400).json(err.message);
+    }
+  }
+);
 
 export default enterpreneurRouter;
