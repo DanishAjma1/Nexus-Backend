@@ -74,7 +74,7 @@ collaborationRouter.put(
           sender: request.enter_id,
           message: `Your collaboration request has been accepted!`,
           type: "general",
-          link: `/entrepreneur/${request.enter_id}`, // Link back to profile to make deal
+          link: `/profile/entrepreneur/${request.enter_id}`, 
         });
         await notification.save();
       }
