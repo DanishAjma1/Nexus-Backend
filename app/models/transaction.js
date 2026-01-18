@@ -21,6 +21,7 @@ const transactionSchema = new mongoose.Schema(
       ref: "Campaign",
       required: true,
     },
+    campaignTitle: { type: String },
     amount: {
       type: Number,
       required: true,
@@ -35,7 +36,7 @@ const transactionSchema = new mongoose.Schema(
       default: "pending",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Transaction = mongoose.model("Transaction", transactionSchema);

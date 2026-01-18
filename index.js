@@ -18,6 +18,7 @@ import linkedinRouter from "./app/routes/linkedInoAuthRouter.js";
 import adminRouter from "./app/routes/adminRouter.js";
 import contactRouter from "./app/routes/contact.js";
 import paymentRouter from "./app/routes/paymentRouter.js";
+import dealRouter from "./app/routes/dealRouter.js";
 import { startSuspensionChecker } from "./app/utils/suspensionChecker.js";
 import { startCampaignChecker } from "./app/utils/campaignChecker.js";
 // import stripeWebhook from "./app/routes/stripeWebhook.js";
@@ -51,6 +52,7 @@ app.use("/agora", agoraRouter);
 app.use("/admin", adminRouter);
 app.use("/contact", contactRouter);
 app.use("/payment", paymentRouter);
+app.use("/deal", dealRouter);
 
 startSuspensionChecker();
 startCampaignChecker();

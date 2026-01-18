@@ -47,6 +47,11 @@ enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
                 pitchSummary: 1,
                 fundingNeeded: 1,
                 teamSize: 1,
+                fundingHistory: 1,
+                valuation: 1,
+                preSeedStatus: 1,
+                seedStatus: 1,
+                seriesAStatus: 1,
               },
             },
           ],
@@ -134,6 +139,11 @@ enterpreneurRouter.get("/get-entrepreneur-by-id/:id", async (req, res) => {
         },
       },
     ]);
+
+    if (entrepreneur && entrepreneur.length > 0) {
+        console.log(`Fetched Entrepreneur ${id}: FundingHistory Length:`, entrepreneur[0].fundingHistory?.length || 0);
+        console.log(`Fetched Entrepreneur ${id}: FundingHistory Data:`, entrepreneur[0].fundingHistory);
+    } 
 
     res.status(200).json({ entrepreneur: entrepreneur[0] || null });
   } catch (err) {
