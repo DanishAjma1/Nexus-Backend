@@ -488,15 +488,19 @@ paymentRouter.post("/admin/release-funds", async (req, res) => {
             console.log(`Attempting to update profile for entrepreneur: ${deal.entrepreneurId}`);
             const entrepreneurProfile = await Enterpreneur.findOne({ userId: deal.entrepreneurId });
             
-            if (entrepreneurProfile) {
+                if (entrepreneurProfile) {
                 console.log("Found entrepreneur profile. Updating history...");
-                // 1. Add to Funding History
-                entrepreneurProfile.fundingHistory.push({
+                
+                const historyEntry = {
                     amount: deal.investmentAmount,
                     stage: deal.stage || 'Seed', 
                     year: new Date().getFullYear(),
                     date: new Date()
-                });
+                };
+                console.log("Pushing History Entry:", historyEntry);
+
+                // 1. Add to Funding History
+                entrepreneurProfile.fundingHistory.push(historyEntry);
 
                 // 2. Update Valuation
                 if (deal.postMoneyValuation) {
