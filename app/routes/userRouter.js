@@ -1,12 +1,70 @@
 import { Router } from "express";
 import User from "../models/user.js";
 import Card from "../models/card.js";
+import Deal from "../models/deal.js";
+import Campaign from "../models/campaign.js";
 import multer from "multer";
 import { connectDB } from "../config/mongoDBConnection.js";
 import jwt from "jsonwebtoken";
 import fs from "fs";
 
 const userRouter = Router();
+
+userRouter.get("/platform-stats", async (req, res) => {
+  try {
+    await connectDB();
+    
+    // Total Invested: Sum of investmentAmount from all released funds
+    const totalInvestedResult = await Deal.aggregate([
+      { $match: { paymentStatus: "funds_released" } },
+      { $group: { _id: null, total: { $sum: "$investmentAmount" } } }
+    ]);
+    const totalInvested = totalInvestedResult[0]?.total || 0;
+
+    // Total Investors: Count of approved investors
+    const totalInvestors = await User.countDocuments({ 
+      role: "investor", 
+      approvalStatus: "approved" 
+    });
+
+    // Total Startups (Active Deals): Count of approved and non-suspended/non-blocked entrepreneurs
+    const totalStartups = await User.countDocuments({
+      role: "entrepreneur",
+      approvalStatus: "approved",
+      isBlocked: { $ne: true },
+      isSuspended: { $ne: true }
+    });
+
+    // Total Funded (Campaigns): Sum of raisedAmount from approved/active/completed campaigns
+    const totalFundedResult = await Campaign.aggregate([
+      { $match: { status: { $in: ["approved", "active", "completed"] } } },
+      { $group: { _id: null, total: { $sum: "$raisedAmount" } } }
+    ]);
+    const totalFunded = totalFundedResult[0]?.total || 0;
+
+    // Success Rate (Campaigns): (Successful / Total) * 100
+    const campaignsCount = await Campaign.countDocuments({ 
+      status: { $in: ["approved", "active", "completed"] } 
+    });
+    const successfulCampaignsCount = await Campaign.countDocuments({
+      status: { $in: ["approved", "active", "completed"] },
+      $expr: { $gte: ["$raisedAmount", "$goalAmount"] }
+    });
+    const successRate = campaignsCount > 0 
+      ? Math.round((successfulCampaignsCount / campaignsCount) * 100) 
+      : 95; // Default/Fallback if no campaigns
+
+    res.status(200).json({
+      totalInvested,
+      totalInvestors,
+      totalStartups,
+      totalFunded,
+      successRate
+    });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
 //create storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {

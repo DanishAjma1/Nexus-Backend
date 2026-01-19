@@ -38,6 +38,7 @@ const enterprenuerSchema = mongoose.Schema({
       date: { type: Date, default: Date.now }
     }
   ],
+  businessThumbnails: { type: [String], default: [] },
 });
 
 const Enterprenuer = mongoose.model("Enterpreneur", enterprenuerSchema);

@@ -31,6 +31,7 @@ enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
           role: "entrepreneur",
           approvalStatus: "approved",
           isBlocked: { $ne: true },
+          isSuspended: { $ne: true },
         },
       },
       {
@@ -52,6 +53,7 @@ enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
                 preSeedStatus: 1,
                 seedStatus: 1,
                 seriesAStatus: 1,
+                businessThumbnails: 1,
               },
             },
           ],
@@ -75,30 +77,44 @@ enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
             },
             {
               $group: {
-                _id: "$investorId"
-              }
+                _id: null,
+                totalRaised: { $sum: "$investmentAmount" },
+                investorIds: { $addToSet: "$investorId" },
+              },
             },
             {
               $lookup: {
                 from: "users",
-                localField: "_id",
+                localField: "investorIds",
                 foreignField: "_id",
                 as: "investorDetails",
               },
             },
             {
-              $unwind: "$investorDetails",
-            },
-            {
               $project: {
                 _id: 0,
-                name: "$investorDetails.name",
-                avatarUrl: "$investorDetails.avatarUrl",
-                userId: "$investorDetails._id",
+                totalRaised: 1,
+                investors: {
+                  $map: {
+                    input: "$investorDetails",
+                    as: "inv",
+                    in: {
+                      name: "$$inv.name",
+                      avatarUrl: "$$inv.avatarUrl",
+                      userId: "$$inv._id",
+                    },
+                  },
+                },
               },
             },
           ],
-          as: "investors",
+          as: "dealSummary",
+        },
+      },
+      {
+        $unwind: {
+          path: "$dealSummary",
+          preserveNullAndEmptyArrays: true,
         },
       },
       {
@@ -110,6 +126,8 @@ enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
       {
         $addFields: {
           userId: "$_id",
+          totalRaised: { $ifNull: ["$dealSummary.totalRaised", 0] },
+          investors: { $ifNull: ["$dealSummary.investors", []] },
         },
       },
       {
@@ -120,11 +138,15 @@ enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
         },
       },
       {
+        $sort: { createdAt: -1 }
+      },
+      {
         $project: {
           password: 0,
           __v: 0,
           _id: 0,
           userInfo: 0,
+          dealSummary: 0,
         },
       },
     ]);
@@ -407,6 +429,87 @@ enterpreneurRouter.delete(
     } catch (err) {
       console.error(err);
       res.status(400).json(err.message);
+    }
+  }
+);
+
+// Upload Business Thumbnails
+enterpreneurRouter.post(
+  "/upload-thumbnails/:id",
+  upload.array("thumbnails", 3),
+  async (req, res) => {
+    try {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ message: "No files uploaded" });
+      }
+
+      await connectDB();
+      const { id } = req.params;
+
+      const newThumbnails = req.files.map((file) => {
+        return `${req.protocol}://${req.get("host")}/${file.destination}${file.filename}`;
+      });
+
+      const entrepreneur = await Enterprenuer.findOne({ userId: id });
+      if (!entrepreneur) {
+        return res.status(404).json({ message: "Entrepreneur not found" });
+      }
+
+      // Check current thumbnails count
+      const totalThumbnails = (entrepreneur.businessThumbnails?.length || 0) + newThumbnails.length;
+      if (totalThumbnails > 3) {
+        return res.status(400).json({ message: "Maximum 3 thumbnails allowed" });
+      }
+
+      entrepreneur.businessThumbnails = [...(entrepreneur.businessThumbnails || []), ...newThumbnails];
+      await entrepreneur.save();
+
+      res.status(200).json(entrepreneur);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: err.message });
+    }
+  }
+);
+
+// Delete Business Thumbnail
+enterpreneurRouter.delete(
+  "/delete-thumbnail/:id",
+  async (req, res) => {
+    try {
+      await connectDB();
+      const { id } = req.params;
+      const { imageUrl } = req.body;
+
+      if (!imageUrl) {
+        return res.status(400).json({ message: "Image URL is required" });
+      }
+
+      const entrepreneur = await Enterprenuer.findOneAndUpdate(
+        { userId: id },
+        { $pull: { businessThumbnails: imageUrl } },
+        { new: true }
+      );
+
+      if (!entrepreneur) {
+        return res.status(404).json({ message: "Entrepreneur not found" });
+      }
+
+      // Optional: Delete physical file if needed
+      // Extract filename from URL and delete from uploads folder
+      try {
+        const filename = imageUrl.split("/").pop();
+        if (fs.existsSync(`uploads/${filename}`)) {
+          fs.unlinkSync(`uploads/${filename}`);
+        }
+      } catch (fileErr) {
+        console.error("Failed to delete file:", fileErr);
+      }
+
+      res.status(200).json(entrepreneur);
+    } catch (err) {
+      console.error(err);
+      res.status(400).json({ message: err.message });
     }
   }
 );

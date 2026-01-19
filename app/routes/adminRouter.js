@@ -3,6 +3,7 @@ import { connectDB } from "../config/mongoDBConnection.js";
 import Enterprenuer from "../models/enterpreneur.js";
 import Investor from "../models/investor.js";
 import Campaign from "../models/campaign.js";
+import Supporter from "../models/supporter.js";
 import multer from "multer";
 import moment from "moment";
 const adminRouter = Router();
@@ -61,7 +62,7 @@ adminRouter.get("/dashboard", async (req, res) => {
 
     const totalStartups = await User.countDocuments({ role: "entrepreneur" });
     const totalInvestors = await User.countDocuments({ role: "investor" });
-    const totalSupporters = await User.countDocuments({ role: "supporter" });
+    const totalSupporters = await Supporter.countDocuments();
     const totalCampaigns = await Campaign.countDocuments();
 
     const flaggedUsers = await User.countDocuments({ isFlagged: true });
