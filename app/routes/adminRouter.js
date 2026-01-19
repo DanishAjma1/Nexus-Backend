@@ -3,6 +3,7 @@ import { connectDB } from "../config/mongoDBConnection.js";
 import Enterprenuer from "../models/enterpreneur.js";
 import Investor from "../models/investor.js";
 import Campaign from "../models/campaign.js";
+import Supporter from "../models/supporter.js";
 import multer from "multer";
 import moment from "moment";
 const adminRouter = Router();
@@ -23,6 +24,9 @@ import {
 } from "../utils/suspensionBlockMailService.js";
 import { checkApprovalStatus, adminOnly } from "../middleware/approvalMiddleware.js";
 import jwt from "jsonwebtoken";
+import dns from "dns";
+import { promisify } from "util";
+const resolveMx = promisify(dns.resolveMx);
 const uploadDir = "uploads";
 
 if (!fs.existsSync(uploadDir)) {
@@ -58,7 +62,7 @@ adminRouter.get("/dashboard", async (req, res) => {
 
     const totalStartups = await User.countDocuments({ role: "entrepreneur" });
     const totalInvestors = await User.countDocuments({ role: "investor" });
-    const totalSupporters = await User.countDocuments({ role: "supporter" });
+    const totalSupporters = await Supporter.countDocuments();
     const totalCampaigns = await Campaign.countDocuments();
 
     const flaggedUsers = await User.countDocuments({ isFlagged: true });
@@ -484,6 +488,44 @@ export const logRiskEvent = async ({
     console.error("Risk Event Log Error:", err);
   }
 };
+
+const DISPOSABLE_DOMAINS = [
+  "mailinator.com", "yopmail.com", "10minutemail.com", "temp-mail.org",
+  "guerrillamail.com", "sharklasers.com", "dispostable.com", "getairmail.com",
+  "maildrop.cc", "mintemail.com", "teleworm.us", "dayrep.com", "armyspy.com",
+  "disposable.com", "emailfake.com", "fakeinbox.com", "mailnesia.com",
+  "mailnull.com", "moakt.com", "mytrashmail.com", "pichumail.com",
+  "temp-mail.io", "tempmail.net", "tempmail.com", "trbvm.com"
+];
+
+adminRouter.get("/verify-email/:email", async (req, res) => {
+  const { email } = req.params;
+  try {
+    // 1. Syntax check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.json({ exists: false, reason: "Invalid format" });
+    }
+
+    const domain = email.split("@")[1].toLowerCase();
+
+    // 2. Disposable check
+    if (DISPOSABLE_DOMAINS.includes(domain)) {
+      return res.json({ exists: false, reason: "Disposable email" });
+    }
+
+    // 3. MX Record check
+    const mxRecords = await resolveMx(domain).catch(() => []);
+    if (!mxRecords || mxRecords.length === 0) {
+      return res.json({ exists: false, reason: "No mail server" });
+    }
+
+    // If we reach here, it's a valid format, not disposable, and has MX records.
+    return res.json({ exists: true });
+  } catch (error) {
+    return res.json({ exists: false, reason: "Verification error" });
+  }
+});
 
 adminRouter.get("/pending-approvals", async (req, res) => {
   try {

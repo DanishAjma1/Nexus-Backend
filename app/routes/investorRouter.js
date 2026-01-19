@@ -89,6 +89,63 @@ investorRouter.get("/get-investor-by-id/:id", async (req, res) => {
         },
       },
       {
+        $lookup: {
+          from: "deals",
+          let: { user_id: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$investorId", "$$user_id"] },
+                    { $eq: ["$paymentStatus", "funds_released"] },
+                  ],
+                },
+              },
+            },
+            {
+              $group: {
+                _id: "$entrepreneurId",
+                totalAmount: { $sum: "$investmentAmount" }
+              }
+            },
+            {
+              $lookup: {
+                from: "enterpreneurs",
+                localField: "_id",
+                foreignField: "userId",
+                as: "startupDetails",
+              },
+            },
+             {
+              $lookup: {
+                from: "users",
+                localField: "_id",
+                foreignField: "_id",
+                as: "userDetails",
+              },
+            },
+            {
+              $unwind: "$startupDetails",
+            },
+             {
+              $unwind: "$userDetails",
+            },
+            {
+              $project: {
+                _id: 0,
+                startupName: "$startupDetails.startupName",
+                avatarUrl: "$userDetails.avatarUrl",
+                amount: "$totalAmount",
+                entrepreneurId: "$_id",
+                userId: "$userDetails._id"
+              },
+            },
+          ],
+          as: "portfolio",
+        },
+      },
+      {
         $unwind: {
           path: "$investorInfo",
           preserveNullAndEmptyArrays: true,
