@@ -31,7 +31,7 @@ dealRouter.post("/create-deal", async (req, res) => {
       sender: investorId,
       message: `You have received a new investment proposal!`,
       type: "deal_offer",
-      link: `/deals/sent-deals` 
+      link: `/deals/view-deals` 
     });
     await notification.save();
 
@@ -70,7 +70,7 @@ dealRouter.put("/update-deal/:id", async (req, res) => {
         sender: role === 'investor' ? deal.investorId : deal.entrepreneurId,
         message: `New counter-offer received for deal with ${deal.entrepreneurId.startupName}`,
         type: "deal_negotiation",
-        link: role === 'investor' ? `/deals/view-deals` : `/deals/sent-deals`
+        link: role === 'investor' ? `/deals/sent-deals` : `/deals/view-deals`
       });
       await notification.save();
 
@@ -94,7 +94,7 @@ dealRouter.put("/update-deal/:id", async (req, res) => {
         sender: role === 'investor' ? deal.investorId : deal.entrepreneurId,
         message: `Deal accepted!`,
         type: "deal_accepted",
-        link: role === 'investor' ? `/deals/view-deals` : `/deals/sent-deals`
+        link: role === 'investor' ? `/deals/sent-deals` : `/deals/view-deals`
       });
       await notification.save();
 
@@ -107,7 +107,7 @@ dealRouter.put("/update-deal/:id", async (req, res) => {
         sender: role === 'investor' ? deal.investorId : deal.entrepreneurId,
         message: `Deal rejected.`,
         type: "deal_rejected",
-        link: role === 'investor' ? `/deals/view-deals` : `/deals/sent-deals`
+        link: role === 'investor' ? `/deals/sent-deals` : `/deals/view-deals`
       });
       await notification.save();
     }
