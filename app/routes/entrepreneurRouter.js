@@ -59,6 +59,49 @@ enterpreneurRouter.get("/get-entrepreneurs", async (req, res) => {
         },
       },
       {
+        $lookup: {
+          from: "deals",
+          let: { user_id: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$entrepreneurId", "$$user_id"] },
+                    { $eq: ["$paymentStatus", "funds_released"] },
+                  ],
+                },
+              },
+            },
+            {
+              $group: {
+                _id: "$investorId"
+              }
+            },
+            {
+              $lookup: {
+                from: "users",
+                localField: "_id",
+                foreignField: "_id",
+                as: "investorDetails",
+              },
+            },
+            {
+              $unwind: "$investorDetails",
+            },
+            {
+              $project: {
+                _id: 0,
+                name: "$investorDetails.name",
+                avatarUrl: "$investorDetails.avatarUrl",
+                userId: "$investorDetails._id",
+              },
+            },
+          ],
+          as: "investors",
+        },
+      },
+      {
         $unwind: {
           path: "$userInfo",
           preserveNullAndEmptyArrays: true,
@@ -110,6 +153,49 @@ enterpreneurRouter.get("/get-entrepreneur-by-id/:id", async (req, res) => {
           localField: "_id",
           foreignField: "userId",
           as: "userInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "deals",
+          let: { user_id: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$entrepreneurId", "$$user_id"] },
+                    { $eq: ["$paymentStatus", "funds_released"] },
+                  ],
+                },
+              },
+            },
+            {
+              $group: {
+                _id: "$investorId"
+              }
+            },
+            {
+              $lookup: {
+                from: "users",
+                localField: "_id",
+                foreignField: "_id",
+                as: "investorDetails",
+              },
+            },
+            {
+              $unwind: "$investorDetails",
+            },
+            {
+              $project: {
+                _id: 0,
+                name: "$investorDetails.name",
+                avatarUrl: "$investorDetails.avatarUrl",
+                userId: "$investorDetails._id",
+              },
+            },
+          ],
+          as: "investors",
         },
       },
       {
