@@ -3,6 +3,9 @@ import User from "../models/user.js";
 import Card from "../models/card.js";
 import Deal from "../models/deal.js";
 import Campaign from "../models/campaign.js";
+import Transaction from "../models/transaction.js";
+import DealTransaction from "../models/dealTransaction.js";
+import Enterpreneur from "../models/enterpreneur.js";
 import multer from "multer";
 import { connectDB } from "../config/mongoDBConnection.js";
 import jwt from "jsonwebtoken";
@@ -414,6 +417,109 @@ userRouter.delete("/cards/:cardId", async (req, res) => {
     res.status(200).json({ message: "Card deleted successfully" });
   } catch (error) {
     console.error("Delete card error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get billing history for the authenticated user (all campaign contributions)
+userRouter.get("/billing-history", async (req, res) => {
+  try {
+    const user = await getUserFromToken(req);
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    await connectDB();
+    
+    // Get all transactions where user contributed to campaigns
+    const transactions = await Transaction.find({ 
+      userId: user._id,
+      status: "succeeded" 
+    })
+      .populate("campaignId", "title")
+      .sort({ createdAt: -1 });
+
+    const billingHistory = transactions.map((tx) => ({
+      id: tx._id,
+      campaignName: tx.campaignId ? tx.campaignId.title : tx.campaignTitle || "Deleted Campaign",
+      contributedAmount: tx.amount,
+      date: tx.createdAt,
+      paymentIntentId: tx.paymentIntentId,
+    }));
+
+    res.status(200).json({ billingHistory });
+  } catch (error) {
+    console.error("Get billing history error:", error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get investment history for investors (startup investments via deals)
+userRouter.get("/investment-history", async (req, res) => {
+  try {
+    const user = await getUserFromToken(req);
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    await connectDB();
+    
+    // Only investors can access investment history
+    if (user.role !== "investor") {
+      return res.status(403).json({ message: "Only investors can access investment history" });
+    }
+    
+    // Get all deal transactions where user is the investor
+    const dealTransactions = await DealTransaction.find({ 
+      investorId: user._id,
+      status: { $in: ["succeeded", "released"] }
+    })
+      .populate({
+        path: "dealId",
+        select: "entrepreneurId investmentAmount equityOffered",
+        populate: {
+          path: "entrepreneurId",
+          select: "name"
+        }
+      })
+      .populate("entrepreneurId", "name")
+      .sort({ createdAt: -1 });
+
+    const investmentHistory = await Promise.all(
+      dealTransactions.map(async (tx) => {
+        let startupName = "Unknown Startup";
+        
+        // Try to get startup name from entrepreneur profile
+        if (tx.entrepreneurId) {
+          const entrepreneurProfile = await Enterpreneur.findOne({ userId: tx.entrepreneurId });
+          if (entrepreneurProfile && entrepreneurProfile.startupName) {
+            startupName = entrepreneurProfile.startupName;
+          } else if (tx.entrepreneurId.name) {
+            startupName = tx.entrepreneurId.name;
+          }
+        } else if (tx.dealId && tx.dealId.entrepreneurId) {
+          const entrepreneurProfile = await Enterpreneur.findOne({ userId: tx.dealId.entrepreneurId._id });
+          if (entrepreneurProfile && entrepreneurProfile.startupName) {
+            startupName = entrepreneurProfile.startupName;
+          } else if (tx.dealId.entrepreneurId.name) {
+            startupName = tx.dealId.entrepreneurId.name;
+          }
+        }
+
+        return {
+          id: tx._id,
+          startupName: startupName,
+          investedAmount: tx.amount,
+          date: tx.createdAt,
+          status: tx.status,
+          paymentIntentId: tx.paymentIntentId,
+        };
+      })
+    );
+
+    res.status(200).json({ investmentHistory });
+  } catch (error) {
+    console.error("Get investment history error:", error);
     res.status(500).json({ message: error.message });
   }
 });

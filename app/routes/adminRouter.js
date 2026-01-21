@@ -110,7 +110,7 @@ adminRouter.delete("/user/:id", async (req, res) => {
 adminRouter.post("/campaigns", upload.fields([{ name: "images", maxCount: 3 }, { name: "video", maxCount: 1 }]), async (req, res) => {
   try {
     await connectDB();
-    const { title, description, goalAmount, startDate, endDate, category, organizer, isLifetime } =
+    const { title, description, goalAmount, startDate, endDate, category, organizer, isLifetime, existingImages } =
       req.body;
 
     if (!title || !description || !goalAmount || !startDate || (!isLifetime && !endDate)) {
@@ -119,14 +119,24 @@ adminRouter.post("/campaigns", upload.fields([{ name: "images", maxCount: 3 }, {
         .json({ message: "All required fields must be provided." });
     }
 
+    // Handle uploaded files
     const imagePaths =
       req.files["images"]?.map((file) => `/uploads/${file.filename}`) || [];
+    
+    // Handle existing images (URLs)
+    let urlImages = [];
+    if (existingImages) {
+      urlImages = Array.isArray(existingImages) ? existingImages : [existingImages];
+    }
+
+    // Combine file uploads and URL images
+    const allImages = [...urlImages, ...imagePaths];
     
     const videoPath = req.files["video"]?.[0]
       ? `/uploads/${req.files["video"][0].filename}`
       : null;
 
-    if (imagePaths.length === 0) {
+    if (allImages.length === 0) {
       return res.status(400).json({ message: "At least one image is required." });
     }
 
@@ -140,7 +150,7 @@ adminRouter.post("/campaigns", upload.fields([{ name: "images", maxCount: 3 }, {
       isLifetime: isLifetime || false,
       category,
       organizer,
-      images: imagePaths,
+      images: allImages,
       video: videoPath,
       status: "active",
     });

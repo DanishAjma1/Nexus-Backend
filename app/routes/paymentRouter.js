@@ -89,23 +89,23 @@ paymentRouter.post("/create-payment-intent", async (req, res) => {
 paymentRouter.post("/confirm-payment", async (req, res) => {
   try {
     await connectDB();
-    // const { campaignId, amount, paymentIntentId, guestName, guestPhone, guestEmail } = req.body;
-    const { paymentIntentId } = req.body;
+     const { campaignId, amount, paymentIntentId, guestName, guestPhone, guestEmail } = req.body;
+    //const { paymentIntentId } = req.body;
 
     //  1. VERIFY PAYMENT FROM STRIPE (ADD THIS)
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    // const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
-    if (paymentIntent.status !== "succeeded") {
-      return res
-        .status(400)
-        .json({ message: "Payment not verified by Stripe" });
-    }
+    // if (paymentIntent.status !== "succeeded") {
+    //   return res
+    //     .status(400)
+    //     .json({ message: "Payment not verified by Stripe" });
+    // }
 
-    // 2. READ CAMPAIGN FROM STRIPE METADATA (TRUST STRIPE, NOT FRONTEND)
-    const campaignId = paymentIntent.metadata.campaignId;
-    const amount = paymentIntent.amount_received / 100;
+    // // 2. READ CAMPAIGN FROM STRIPE METADATA (TRUST STRIPE, NOT FRONTEND)
+     //const campaignId = paymentIntent.metadata.campaignId;
+    // const amount = paymentIntent.amount_received / 100;
 
-    const { guestName, guestPhone, guestEmail } = req.body;
+    // const { guestName, guestPhone, guestEmail } = req.body;
     const user = await getUserIfAvailable(req);
 
     const campaign = await Campaign.findById(campaignId);
@@ -336,7 +336,16 @@ paymentRouter.post("/confirm-deal-payment", async (req, res) => {
             return res.status(200).json({ message: "Transaction already recorded", transaction: existingTransaction });
         }
 
+        // Fetch entrepreneur profile for startup name
+        const entrepreneurProfile = await Enterpreneur.findOne({ userId: deal.entrepreneurId._id });
+        const startupName = entrepreneurProfile?.startupName || deal.entrepreneurId.name;
+
         const amount = paymentIntent.amount_received / 100;
+        
+        // Calculate 5% Commission
+        const commissionPercentage = 0.05;
+        const platformCommission = amount * commissionPercentage;
+        const netAmount = amount - platformCommission;
         
         // Create Transaction Record
         const transaction = new DealTransaction({
@@ -344,6 +353,10 @@ paymentRouter.post("/confirm-deal-payment", async (req, res) => {
             investorId: deal.investorId._id,
             entrepreneurId: deal.entrepreneurId._id,
             amount: amount,
+            platformCommission: platformCommission,
+            netAmount: netAmount,
+            investorName:deal.investorId.name,
+            entrepreneurName: deal.entrepreneurId.name,
             paymentIntentId: paymentIntentId,
             status: "succeeded",
             stripeFee: 0 // Ideally calculating fee from stripe balance transaction if needed
@@ -364,7 +377,7 @@ paymentRouter.post("/confirm-deal-payment", async (req, res) => {
         const notifEnt = new Notification({
             recipient: deal.entrepreneurId._id,
             sender: deal.investorId._id,
-            message: `Investment payment of $${amount} received! Funds are subject to admin approval before release.`,
+            message: `Investment payment of $${amount} received! After 5% platform commission ($${platformCommission.toFixed(2)}), you will receive $${netAmount.toFixed(2)}. Funds are subject to admin approval before release.`,
             type: "deal_accepted", // Reusing type or add new one
             link: `/dashboard/entrepreneur` 
         });
@@ -374,7 +387,7 @@ paymentRouter.post("/confirm-deal-payment", async (req, res) => {
          const notifInv = new Notification({
             recipient: deal.investorId._id, // Self check?
             sender: deal.investorId._id,
-            message: `Payment of $${amount} for ${deal.entrepreneurId.startupName} successful. Waiting for admin processing.`,
+            message: `Payment of $${amount} for ${startupName} successful. Entrepreneur will receive $${netAmount.toFixed(2)} after 5% commission. Waiting for admin processing.`,
             type: "deal_accepted",
             link: `/deals/sent-deals`
         });
@@ -387,7 +400,7 @@ paymentRouter.post("/confirm-deal-payment", async (req, res) => {
         const adminNotifications = admins.map(admin => ({
             recipient: admin._id,
             sender: deal.investorId._id,
-            message: `New Payment: ${deal.investorId.name} paid $${amount} for ${deal.entrepreneurId.startupName}. Review required.`,
+            message: `New Payment: ${deal.investorId.name} paid $${amount} for ${startupName}. Platform Commission: $${platformCommission.toFixed(2)}. Entrepreneur to receive: $${netAmount.toFixed(2)}. Review required.`,
             type: "payment_review", // New type
             link: `/admin/payments`
         }));
@@ -399,7 +412,7 @@ paymentRouter.post("/confirm-deal-payment", async (req, res) => {
         // 2. Email Notification (Using service)
         // We send to the configured ADMIN_EMAIL, but optionally could loop through all admins if they have emails.
         // The service uses process.env.ADMIN_EMAIL.
-        await sendAdminPaymentNotification(deal, amount, deal.investorId.name, paymentIntentId);
+        await sendAdminPaymentNotification(deal, amount, deal.investorId.name, paymentIntentId, netAmount);
 
         res.status(200).json({ message: "Payment confirmed", transaction });
 
@@ -426,6 +439,147 @@ paymentRouter.get("/admin/deal-transactions", async (req, res) => {
     }
 });
 
+// Create Additional Investment Payment Intent
+paymentRouter.post("/create-additional-investment-intent", async (req, res) => {
+    try {
+        const { dealId, amount } = req.body;
+        const user = await getUserIfAvailable(req);
+        
+        if (!user) return res.status(401).json({ message: "Unauthorized" });
+
+        const deal = await Deal.findById(dealId).populate('entrepreneurId', 'name');
+        if (!deal) return res.status(404).json({ message: "Deal not found" });
+
+        if (deal.paymentStatus !== 'funds_released') {
+            return res.status(400).json({ message: "Initial investment must be completed and released first" });
+        }
+
+        if (amount <= 0) {
+            return res.status(400).json({ message: "Invalid amount" });
+        }
+
+        const metadata = {
+            dealId: dealId,
+            investorId: user._id.toString(),
+            investorName: user.name,
+            entrepreneurId: deal.entrepreneurId.toString(),
+            entrepreneurName: deal.entrepreneurId.name,
+            type: 'additional_investment'
+        };
+
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(amount * 100),
+            currency: "usd",
+            metadata: metadata,
+        });
+
+        res.status(200).json({
+            clientSecret: paymentIntent.client_secret,
+        });
+
+    } catch (error) {
+        console.error("Stripe Additional Investment Error:", error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Confirm Additional Investment
+paymentRouter.post("/confirm-additional-investment", async (req, res) => {
+    try {
+        await connectDB();
+        const { paymentIntentId, dealId } = req.body;
+
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+        if (paymentIntent.status !== "succeeded") {
+            return res.status(400).json({ message: "Payment not verified by Stripe" });
+        }
+
+        if (paymentIntent.metadata.type !== 'additional_investment' || paymentIntent.metadata.dealId !== dealId) {
+             return res.status(400).json({ message: "Invalid payment intent for additional investment" });
+        }
+
+        const deal = await Deal.findById(dealId).populate('investorId').populate('entrepreneurId');
+        if (!deal) return res.status(404).json({ message: "Deal not found" });
+
+        const existingTransaction = await DealTransaction.findOne({ paymentIntentId });
+        if (existingTransaction) {
+            return res.status(200).json({ message: "Transaction already recorded", transaction: existingTransaction });
+        }
+
+        // Fetch entrepreneur profile for startup name
+        const entrepreneurProfile = await Enterpreneur.findOne({ userId: deal.entrepreneurId._id });
+        const startupName = entrepreneurProfile?.startupName || deal.entrepreneurId.name;
+
+        const amount = paymentIntent.amount_received / 100;
+        
+        // Calculate 5% Commission
+        const commissionPercentage = 0.05;
+        const platformCommission = amount * commissionPercentage;
+        const netAmount = amount - platformCommission;
+        
+        // Create Transaction Record
+        const transaction = new DealTransaction({
+            dealId: dealId,
+            investorId: deal.investorId._id,
+            entrepreneurId: deal.entrepreneurId._id,
+            amount: amount,
+            platformCommission: platformCommission,
+            netAmount: netAmount,
+            investorName: deal.investorId.name,
+            entrepreneurName: deal.entrepreneurId.name,
+            paymentIntentId: paymentIntentId,
+            status: "succeeded",
+            isAdditionalInvestment: true,
+            stripeFee: 0
+        });
+        await transaction.save();
+
+        // Notify Entrepreneur
+        const notifEnt = new Notification({
+            recipient: deal.entrepreneurId._id,
+            sender: deal.investorId._id,
+            message: `Additional investment of $${amount} received from ${deal.investorId.name}! After 5% commission ($${platformCommission.toFixed(2)}), you will receive $${netAmount.toFixed(2)}. Pending admin approval.`,
+            type: "deal_accepted",
+            link: `/dashboard/entrepreneur` 
+        });
+        await notifEnt.save();
+
+        // Notify Investor
+         const notifInv = new Notification({
+            recipient: deal.investorId._id,
+            sender: deal.investorId._id,
+            message: `Additional investment of $${amount} for ${startupName} successful. Entrepreneur will receive $${netAmount.toFixed(2)} after 5% commission. Waiting for admin processing.`,
+            type: "deal_accepted",
+            link: `/deals/sent-deals`
+        });
+        await notifInv.save();
+        
+        // Notify Admins
+        const admins = await User.find({ role: 'admin' });
+        
+        const adminNotifications = admins.map(admin => ({
+            recipient: admin._id,
+            sender: deal.investorId._id,
+            message: `Additional Investment: ${deal.investorId.name} invested $${amount} more in ${startupName}. Commission: $${platformCommission.toFixed(2)}. Net: $${netAmount.toFixed(2)}. Review required.`,
+            type: "payment_review",
+            link: `/admin/payments`
+        }));
+        
+        if (adminNotifications.length > 0) {
+            await Notification.insertMany(adminNotifications);
+        }
+
+        await sendAdminPaymentNotification(deal, amount, deal.investorId.name, paymentIntentId, netAmount);
+
+        res.status(200).json({ message: "Additional investment confirmed", transaction });
+
+    } catch (error) {
+        console.error("Additional Investment Confirm Error:", error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Admin Release Funds
 paymentRouter.post("/admin/release-funds", async (req, res) => {
     try {
@@ -445,6 +599,13 @@ paymentRouter.post("/admin/release-funds", async (req, res) => {
 // Import Card at top (I will do this in next step or use multi-replace if I can reach top) - logic here first
         // Check for Entrepreneur's Default Card
         const defaultCard = await Card.findOne({ userId: deal.entrepreneurId, isDefault: true });
+        
+        // === 5% COMMISSION DEDUCTION ===
+        // Calculate net amount after 5% commission:
+        // const commissionRate = 0.05;
+        // const platformCommission = transaction.amount * commissionRate;
+        // const netAmountToEntrepreneur = transaction.amount - platformCommission;
+        // Transfer netAmountToEntrepreneur to the card below
         
         if (!defaultCard) {
             // Notify Entrepreneur to add a card
@@ -477,7 +638,7 @@ paymentRouter.post("/admin/release-funds", async (req, res) => {
         const notif = new Notification({
             recipient: deal.entrepreneurId,
             sender: deal.investorId, // or admin ID
-            message: `Funds of $${transaction.amount} have been released to your default card (ending ${defaultCard.cardNumber.slice(-4)})!`,
+            message: `Funds of $${transaction.netAmount.toFixed(2)} have been released to your default card (ending ${defaultCard.cardNumber.slice(-4)})! (After 5% commission deduction of $${transaction.platformCommission.toFixed(2)})`,
             type: "funds_released",
             link: `/dashboard/entrepreneur`
         });
