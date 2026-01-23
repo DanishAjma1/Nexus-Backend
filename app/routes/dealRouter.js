@@ -3,6 +3,7 @@ import { connectDB } from "../config/mongoDBConnection.js";
 import Deal from "../models/deal.js";
 import User from "../models/user.js";
 import Notification from "../models/notification.js";
+import DealTransaction from "../models/dealTransaction.js";
 
 const dealRouter = Router();
 
@@ -70,7 +71,7 @@ dealRouter.put("/update-deal/:id", async (req, res) => {
         sender: role === 'investor' ? deal.investorId : deal.entrepreneurId,
         message: `New counter-offer received for deal with ${deal.entrepreneurId.startupName}`,
         type: "deal_negotiation",
-        link: role === 'investor' ? `/deals/sent-deals` : `/deals/view-deals`
+          link: role === 'investor' ? `/deals/view-deals` : `/deals/sent-deals`
       });
       await notification.save();
 
@@ -94,7 +95,7 @@ dealRouter.put("/update-deal/:id", async (req, res) => {
         sender: role === 'investor' ? deal.investorId : deal.entrepreneurId,
         message: `Deal accepted!`,
         type: "deal_accepted",
-        link: role === 'investor' ? `/deals/sent-deals` : `/deals/view-deals`
+         link: role === 'investor' ? `/deals/view-deals` : `/deals/sent-deals`
       });
       await notification.save();
 
@@ -107,7 +108,7 @@ dealRouter.put("/update-deal/:id", async (req, res) => {
         sender: role === 'investor' ? deal.investorId : deal.entrepreneurId,
         message: `Deal rejected.`,
         type: "deal_rejected",
-        link: role === 'investor' ? `/deals/sent-deals` : `/deals/view-deals`
+        link: role === 'investor' ? `/deals/view-deals` : `/deals/sent-deals`
       });
       await notification.save();
     }
@@ -155,6 +156,31 @@ dealRouter.get("/get-deals/:userId", async (req, res) => {
   } catch (error) {
     console.error("Error fetching deals:", error);
     res.status(500).json({ message: "Failed to fetch deals." });
+  }
+});
+
+// Get transaction receipt for a deal
+dealRouter.get("/get-transaction/:dealId", async (req, res) => {
+  try {
+    await connectDB();
+    const { dealId } = req.params;
+
+    // Get all transactions for this deal (original + additional investments)
+    const transactions = await DealTransaction.find({ dealId })
+      .sort({ createdAt: 1 }) // Oldest first (original investment first)
+      .populate("investorId", "name email")
+      .populate("entrepreneurId", "name email startupName");
+
+    const deal = await Deal.findById(dealId);
+
+    if (!transactions || transactions.length === 0 || !deal) {
+      return res.status(404).json({ message: "Transaction not found" });
+    }
+
+    res.status(200).json({ transactions, deal });
+  } catch (error) {
+    console.error("Error fetching transaction:", error);
+    res.status(500).json({ message: "Failed to fetch transaction." });
   }
 });
 

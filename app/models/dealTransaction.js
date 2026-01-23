@@ -17,6 +17,14 @@ const dealTransactionSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    investorName: {
+      type: String,
+      required: true,
+    },
+    entrepreneurName: {
+      type: String,
+      required: true,
+    },
     amount: {
       type: Number,
       required: true,
@@ -32,6 +40,18 @@ const dealTransactionSchema = new mongoose.Schema(
     },
     stripeFee: {
         type: Number
+    },
+    platformCommission: {
+        type: Number,
+        default: 0
+    },
+    netAmount: {
+        type: Number,
+        default: 0
+    },
+    isAdditionalInvestment: {
+        type: Boolean,
+        default: false
     },
     adminActionDate: {
         type: Date

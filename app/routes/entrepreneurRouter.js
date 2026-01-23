@@ -514,4 +514,46 @@ enterpreneurRouter.delete(
   }
 );
 
+// Upload Business Thumbnail via URL
+enterpreneurRouter.post(
+  "/upload-thumbnail-url/:id",
+  async (req, res) => {
+    try {
+      await connectDB();
+      const { id } = req.params;
+      const { imageUrl } = req.body;
+
+      if (!imageUrl) {
+        return res.status(400).json({ message: "Image URL is required" });
+      }
+
+      // Basic URL validation
+      try {
+        new URL(imageUrl);
+      } catch (urlError) {
+        return res.status(400).json({ message: "Invalid URL format" });
+      }
+
+      const entrepreneur = await Enterprenuer.findOne({ userId: id });
+      if (!entrepreneur) {
+        return res.status(404).json({ message: "Entrepreneur not found" });
+      }
+
+      // Check current thumbnails count
+      const totalThumbnails = (entrepreneur.businessThumbnails?.length || 0) + 1;
+      if (totalThumbnails > 3) {
+        return res.status(400).json({ message: "Maximum 3 thumbnails allowed" });
+      }
+
+      entrepreneur.businessThumbnails = [...(entrepreneur.businessThumbnails || []), imageUrl];
+      await entrepreneur.save();
+
+      res.status(200).json(entrepreneur);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: err.message });
+    }
+  }
+);
+
 export default enterpreneurRouter;

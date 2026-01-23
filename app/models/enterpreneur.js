@@ -5,7 +5,7 @@ const enterprenuerSchema = mongoose.Schema({
   startupName: String,
   pitchSummary: String,
   fundingNeeded: Number,
-  industry: String,
+  industry: [String],
   foundedYear: Number,
   teamSize: Number,
   revenue:Number,

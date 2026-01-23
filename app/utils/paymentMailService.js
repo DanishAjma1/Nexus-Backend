@@ -41,9 +41,17 @@ const getWrapper = (content) => `
   </div>
 `;
 
-export const sendAdminPaymentNotification = (deal, amount, investorName, transactionId) => {
+export const sendAdminPaymentNotification = (
+  deal,
+  amount,
+  investorName,
+  transactionId,
+  netAmount
+) => {
   return new Promise((resolve, reject) => {
     const adminLink = `${BRAND_CONFIG.frontendUrl}/login`;
+    const safeNetAmount = netAmount ?? amount * 0.95; // fallback if not provided
+    const entrepreneurName = deal?.entrepreneurId?.name || "Entrepreneur";
 
     const content = `
       <h2 style="color: #2d3748; text-align: center;">💰 New Investment Payment Received</h2>
@@ -55,7 +63,9 @@ export const sendAdminPaymentNotification = (deal, amount, investorName, transac
       <div style="background-color: #f7fafc; padding: 15px; border-radius: 6px; margin: 20px 0; border: 1px solid #e2e8f0;">
         <p><strong>Investor:</strong> ${investorName}</p>
         <p><strong>Amount:</strong> $${amount.toLocaleString()}</p>
+        <p><strong>Net After Commission:</strong> $${safeNetAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         <p><strong>Startup:</strong> ${deal.entrepreneurId.startupName || 'Startup'}</p>
+        <p><strong>Entrepreneur:</strong> ${entrepreneurName}</p>
         <p><strong>Transaction ID:</strong> ${transactionId}</p>
       </div>
 
