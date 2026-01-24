@@ -23,6 +23,7 @@ import {
   sendUnsuspendMail,
 } from "../utils/suspensionBlockMailService.js";
 import { checkApprovalStatus, adminOnly } from "../middleware/approvalMiddleware.js";
+import { emitNotification } from "../utils/notificationEmitter.js";
 import jwt from "jsonwebtoken";
 import dns from "dns";
 import { promisify } from "util";
@@ -760,13 +761,14 @@ adminRouter.post("/approve-user/:userId", async (req, res) => {
     try {
       const welcomeMessage = `Welcome to TrustBridge AI! 🎉 Your ${user.role} account has been approved. You can now access all platform features and start connecting with ${user.role === 'entrepreneur' ? 'investors' : 'startups'}. We're excited to have you on board!`;
       
-      await Notification.create({
+      const notification = await Notification.create({
         recipient: user._id,
         sender: adminId, // Admin who approved the user
         message: welcomeMessage,
         type: "approval",
         isRead: false,
       });
+      await emitNotification(notification);
     } catch (notificationError) {
       console.error("Welcome notification creation error:", notificationError);
       // Don't fail the approval if notification creation fails

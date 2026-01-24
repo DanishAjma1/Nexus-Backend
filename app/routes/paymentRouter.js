@@ -12,11 +12,12 @@ import Notification from "../models/notification.js";
 import Card from "../models/card.js";
 import Enterpreneur from "../models/enterpreneur.js";
 import { sendAdminPaymentNotification } from "../utils/paymentMailService.js";
+import { emitNotification, emitNotifications } from "../utils/notificationEmitter.js";
 
 const paymentRouter = Router();
 
 // Use the exact names from .env
-const stripe = new Stripe(process.env.Sripe_Secret_key);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Middleware to optionally get user from token
 const getUserIfAvailable = async (req) => {
@@ -382,6 +383,7 @@ paymentRouter.post("/confirm-deal-payment", async (req, res) => {
             link: `/dashboard/entrepreneur` 
         });
         await notifEnt.save();
+        await emitNotification(notifEnt);
 
         // Notify Investor
          const notifInv = new Notification({
@@ -392,6 +394,7 @@ paymentRouter.post("/confirm-deal-payment", async (req, res) => {
             link: `/deals/sent-deals`
         });
         await notifInv.save();
+        await emitNotification(notifInv);
         
         // Notify Admins
         const admins = await User.find({ role: 'admin' });
@@ -406,7 +409,8 @@ paymentRouter.post("/confirm-deal-payment", async (req, res) => {
         }));
         
         if (adminNotifications.length > 0) {
-            await Notification.insertMany(adminNotifications);
+            const savedNotifications = await Notification.insertMany(adminNotifications);
+            await emitNotifications(savedNotifications);
         }
 
         // 2. Email Notification (Using service)
@@ -544,6 +548,7 @@ paymentRouter.post("/confirm-additional-investment", async (req, res) => {
             link: `/dashboard/entrepreneur` 
         });
         await notifEnt.save();
+        await emitNotification(notifEnt);
 
         // Notify Investor
          const notifInv = new Notification({
@@ -554,6 +559,7 @@ paymentRouter.post("/confirm-additional-investment", async (req, res) => {
             link: `/deals/sent-deals`
         });
         await notifInv.save();
+        await emitNotification(notifInv);
         
         // Notify Admins
         const admins = await User.find({ role: 'admin' });
@@ -567,7 +573,8 @@ paymentRouter.post("/confirm-additional-investment", async (req, res) => {
         }));
         
         if (adminNotifications.length > 0) {
-            await Notification.insertMany(adminNotifications);
+            const savedNotifications = await Notification.insertMany(adminNotifications);
+            await emitNotifications(savedNotifications);
         }
 
         await sendAdminPaymentNotification(deal, amount, deal.investorId.name, paymentIntentId, netAmount);
@@ -617,6 +624,7 @@ paymentRouter.post("/admin/release-funds", async (req, res) => {
                 link: `/settings` // Assuming this is where they manage cards
             });
             await notif.save();
+            await emitNotification(notif);
 
             return res.status(400).json({ 
                 message: "Entrepreneur has no default card. A notification has been sent to them to add one." 
@@ -643,6 +651,7 @@ paymentRouter.post("/admin/release-funds", async (req, res) => {
             link: `/dashboard/entrepreneur`
         });
         await notif.save();
+        await emitNotification(notif);
 
         // --- UPDATE ENTREPRENEUR PROFILE ---
         try {
