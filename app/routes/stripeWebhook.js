@@ -7,7 +7,7 @@ import Supporter from "../models/supporter.js";
 import User from "../models/user.js";
 
 const router = express.Router();
-const stripe = new Stripe(process.env.Stripe_Secret_key);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // Webhook handler
 // uses express.raw() to access the raw body for signature verification

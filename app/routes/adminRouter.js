@@ -23,7 +23,7 @@ import {
   sendUnsuspendMail,
 } from "../utils/suspensionBlockMailService.js";
 import { checkApprovalStatus, adminOnly } from "../middleware/approvalMiddleware.js";
-import { emitNotification } from "../utils/notificationEmitter.js";
+import { emitNotification, emitNotifications } from "../utils/notificationEmitter.js";
 import jwt from "jsonwebtoken";
 import dns from "dns";
 import { promisify } from "util";
@@ -180,7 +180,10 @@ adminRouter.post("/campaigns", upload.fields([{ name: "images", maxCount: 3 }, {
           link: `/dashboard/campaigns/${newCampaign._id}`
         }));
 
-        await Notification.insertMany(notifications);
+        const createdNotifications = await Notification.insertMany(notifications);
+        
+        // Emit real-time notifications to all online users
+        await emitNotifications(createdNotifications);
       }
     } catch (notifError) {
       console.error("NOTIFICATION ERROR FOR NEW CAMPAIGN:", notifError);
@@ -1421,7 +1424,10 @@ adminRouter.post("/send-mass-notification", adminOnly, async (req, res) => {
       type: "general",
     }));
 
-    await Notification.insertMany(notifications);
+    const createdNotifications = await Notification.insertMany(notifications);
+    
+    // Emit real-time notifications to all online users
+    await emitNotifications(createdNotifications);
 
     res.status(200).json({
       message: `Notification sent successfully to ${notifications.length} user(s)`,
