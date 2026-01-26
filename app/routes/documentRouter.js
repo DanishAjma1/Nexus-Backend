@@ -5,6 +5,9 @@ import { connectDB } from "../config/mongoDBConnection.js";
 import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
+import User from "../models/user.js";
+import Notification from "../models/notification.js";
+import { emitNotifications } from "../utils/notificationEmitter.js";
 
 const documentRouter = Router();
 
@@ -22,13 +25,19 @@ const storage = multer.diskStorage({
   },
 });
 
+const allowedMimeTypes = [
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+];
+
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === "application/pdf") {
+    if (allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Only PDF files are allowed!"), false);
+      cb(new Error("Only PDF, JPG, or PNG files are allowed!"), false);
     }
   },
 });
@@ -84,6 +93,36 @@ documentRouter.post("/upload", upload.single("file"), async (req, res) => {
         fileName,
       });
       await document.save();
+    }
+
+    // Mark KYC as pending when legal docs are uploaded
+    if (type === "Government ID (CNIC/Passport)" || type === "Selfie Photo") {
+      const user = await User.findByIdAndUpdate(
+        userId,
+        {
+          kycStatus: {
+            status: "pending",
+            reviewedAt: null,
+            reviewedBy: null,
+            note: null,
+          },
+        },
+        { new: true }
+      ).lean();
+
+      // Notify all admins for real-time KYC review
+      const admins = await User.find({ role: "admin" }, "_id").lean();
+      if (admins.length > 0 && user) {
+        const notifications = admins.map((admin) => ({
+          recipient: admin._id,
+          sender: user._id,
+          message: `New KYC upload from ${user.name || "user"}. Please review ID and selfie.`,
+          type: "kyc_review",
+          link: "/admin/all-users",
+        }));
+        const saved = await Notification.insertMany(notifications);
+        await emitNotifications(saved);
+      }
     }
 
     res.status(200).json({

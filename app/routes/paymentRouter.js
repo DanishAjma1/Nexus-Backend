@@ -343,8 +343,8 @@ paymentRouter.post("/confirm-deal-payment", async (req, res) => {
 
         const amount = paymentIntent.amount_received / 100;
         
-        // Calculate 5% Commission
-        const commissionPercentage = 0.05;
+        // Calculate 2% commission
+        const commissionPercentage = 0.02;
         const platformCommission = amount * commissionPercentage;
         const netAmount = amount - platformCommission;
         
@@ -378,7 +378,7 @@ paymentRouter.post("/confirm-deal-payment", async (req, res) => {
         const notifEnt = new Notification({
             recipient: deal.entrepreneurId._id,
             sender: deal.investorId._id,
-            message: `Investment payment of $${amount} received! After 5% platform commission ($${platformCommission.toFixed(2)}), you will receive $${netAmount.toFixed(2)}. Funds are subject to admin approval before release.`,
+            message: `Investment payment of $${amount} received! After 2% platform commission ($${platformCommission.toFixed(2)}), you will receive $${netAmount.toFixed(2)}. Funds are subject to admin approval before release.`,
             type: "deal_accepted", // Reusing type or add new one
             link: `/dashboard/entrepreneur` 
         });
@@ -389,7 +389,7 @@ paymentRouter.post("/confirm-deal-payment", async (req, res) => {
          const notifInv = new Notification({
             recipient: deal.investorId._id, // Self check?
             sender: deal.investorId._id,
-            message: `Payment of $${amount} for ${startupName} successful. Entrepreneur will receive $${netAmount.toFixed(2)} after 5% commission. Waiting for admin processing.`,
+            message: `Payment of $${amount} for ${startupName} successful. Entrepreneur will receive $${netAmount.toFixed(2)} after 2% commission. Waiting for admin processing.`,
             type: "deal_accepted",
             link: `/deals/sent-deals`
         });
@@ -517,8 +517,8 @@ paymentRouter.post("/confirm-additional-investment", async (req, res) => {
 
         const amount = paymentIntent.amount_received / 100;
         
-        // Calculate 5% Commission
-        const commissionPercentage = 0.05;
+        // Calculate 2% commission
+        const commissionPercentage = 0.02;
         const platformCommission = amount * commissionPercentage;
         const netAmount = amount - platformCommission;
         
@@ -543,7 +543,7 @@ paymentRouter.post("/confirm-additional-investment", async (req, res) => {
         const notifEnt = new Notification({
             recipient: deal.entrepreneurId._id,
             sender: deal.investorId._id,
-            message: `Additional investment of $${amount} received from ${deal.investorId.name}! After 5% commission ($${platformCommission.toFixed(2)}), you will receive $${netAmount.toFixed(2)}. Pending admin approval.`,
+            message: `Additional investment of $${amount} received from ${deal.investorId.name}! After 2% commission ($${platformCommission.toFixed(2)}), you will receive $${netAmount.toFixed(2)}. Pending admin approval.`,
             type: "deal_accepted",
             link: `/dashboard/entrepreneur` 
         });
@@ -554,7 +554,7 @@ paymentRouter.post("/confirm-additional-investment", async (req, res) => {
          const notifInv = new Notification({
             recipient: deal.investorId._id,
             sender: deal.investorId._id,
-            message: `Additional investment of $${amount} for ${startupName} successful. Entrepreneur will receive $${netAmount.toFixed(2)} after 5% commission. Waiting for admin processing.`,
+            message: `Additional investment of $${amount} for ${startupName} successful. Entrepreneur will receive $${netAmount.toFixed(2)} after 2% commission. Waiting for admin processing.`,
             type: "deal_accepted",
             link: `/deals/sent-deals`
         });
@@ -604,12 +604,34 @@ paymentRouter.post("/admin/release-funds", async (req, res) => {
         if (!deal) return res.status(404).json({ message: "Deal not found" });
 
 // Import Card at top (I will do this in next step or use multi-replace if I can reach top) - logic here first
+        // Check entrepreneur exists and KYC is verified before releasing funds
+        const entrepreneur = await User.findById(deal.entrepreneurId).lean();
+        if (!entrepreneur) {
+          return res.status(404).json({ message: "Entrepreneur not found" });
+        }
+
+        if (entrepreneur.kycStatus?.status !== "verified") {
+          const notif = new Notification({
+            recipient: deal.entrepreneurId,
+            sender: deal.investorId,
+            message: "Action required: please submit and verify your KYC documents to receive investment funds.",
+            type: "action_required",
+            link: "/settings"
+          });
+          await notif.save();
+          await emitNotification(notif);
+
+          return res.status(400).json({
+            message: "Entrepreneur KYC is not verified. A notification has been sent to complete KYC before releasing funds."
+          });
+        }
+
         // Check for Entrepreneur's Default Card
         const defaultCard = await Card.findOne({ userId: deal.entrepreneurId, isDefault: true });
         
-        // === 5% COMMISSION DEDUCTION ===
-        // Calculate net amount after 5% commission:
-        // const commissionRate = 0.05;
+        // === 2% COMMISSION DEDUCTION ===
+        // Calculate net amount after 2% commission:
+        // const commissionRate = 0.02;
         // const platformCommission = transaction.amount * commissionRate;
         // const netAmountToEntrepreneur = transaction.amount - platformCommission;
         // Transfer netAmountToEntrepreneur to the card below
@@ -646,7 +668,7 @@ paymentRouter.post("/admin/release-funds", async (req, res) => {
         const notif = new Notification({
             recipient: deal.entrepreneurId,
             sender: deal.investorId, // or admin ID
-            message: `Funds of $${transaction.netAmount.toFixed(2)} have been released to your default card (ending ${defaultCard.cardNumber.slice(-4)})! (After 5% commission deduction of $${transaction.platformCommission.toFixed(2)})`,
+            message: `Funds of $${transaction.netAmount.toFixed(2)} have been released to your default card (ending ${defaultCard.cardNumber.slice(-4)})! (After 2% commission deduction of $${transaction.platformCommission.toFixed(2)})`,
             type: "funds_released",
             link: `/dashboard/entrepreneur`
         });

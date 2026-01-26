@@ -50,7 +50,7 @@ export const sendAdminPaymentNotification = (
 ) => {
   return new Promise((resolve, reject) => {
     const adminLink = `${BRAND_CONFIG.frontendUrl}/login`;
-    const safeNetAmount = netAmount ?? amount * 0.95; // fallback if not provided
+    const safeNetAmount = netAmount ?? amount * 0.98; // fallback if not provided
     const entrepreneurName = deal?.entrepreneurId?.name || "Entrepreneur";
 
     const content = `
