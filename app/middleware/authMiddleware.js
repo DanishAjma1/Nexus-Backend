@@ -13,6 +13,7 @@ import TwoFactorAuth from "./twoFactorAuth.js";
 import Entrepreneur from "../models/enterpreneur.js";
 import Investor from "../models/investor.js";
 import Notification from "../models/notification.js";
+import { emitNotifications } from "../utils/notificationEmitter.js";
 const authRouter = Router();
 
 let failed_attempts = 0;
@@ -122,7 +123,8 @@ authRouter.post("/register", async (req, res) => {
           link: `/dashboard/admin/approvals`
         }).save();
       });
-      await Promise.all(notificationPromises);
+      const savedNotifications = await Promise.all(notificationPromises);
+      await emitNotifications(savedNotifications);
     } catch (mailErr) {
       console.error("Failed to send admin new-user notification:", mailErr);
     }

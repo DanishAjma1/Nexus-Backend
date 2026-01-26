@@ -27,7 +27,8 @@ import { startCampaignChecker } from "./app/utils/campaignChecker.js";
 const app = express();
 const server = createServer(app);
 
-// SocketListeners(server);
+const { IO, pubClient } = SocketListeners(server);
+export { IO, pubClient };
 
 app.use(cookieParser());
 // Mount webhook BEFORE bodyParser because it needs raw body for signature verification

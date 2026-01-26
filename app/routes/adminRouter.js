@@ -23,6 +23,8 @@ import {
   sendUnsuspendMail,
 } from "../utils/suspensionBlockMailService.js";
 import { checkApprovalStatus, adminOnly } from "../middleware/approvalMiddleware.js";
+import Document from "../models/document.js";
+import { emitNotification, emitNotifications } from "../utils/notificationEmitter.js";
 import jwt from "jsonwebtoken";
 import dns from "dns";
 import { promisify } from "util";
@@ -53,6 +55,17 @@ const getAdminInfo = (req) => {
     };
   } catch (error) {
     return { name: "Admin Team", email: "admin@trustbridge.ai" };
+  }
+};
+
+const getAdminId = (req) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return null;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return decoded.userId || decoded._id || null;
+  } catch (error) {
+    return null;
   }
 };
 
@@ -179,7 +192,10 @@ adminRouter.post("/campaigns", upload.fields([{ name: "images", maxCount: 3 }, {
           link: `/dashboard/campaigns/${newCampaign._id}`
         }));
 
-        await Notification.insertMany(notifications);
+        const createdNotifications = await Notification.insertMany(notifications);
+        
+        // Emit real-time notifications to all online users
+        await emitNotifications(createdNotifications);
       }
     } catch (notifError) {
       console.error("NOTIFICATION ERROR FOR NEW CAMPAIGN:", notifError);
@@ -610,6 +626,68 @@ adminRouter.get("/pending-approvals", async (req, res) => {
   }
 });
 
+// --- KYC / Legal verification ---
+adminRouter.get("/kyc/documents/:userId", adminOnly, async (req, res) => {
+  try {
+    await connectDB();
+    const { userId } = req.params;
+    const docs = await Document.find({ userId }).lean();
+    res.status(200).json({ documents: docs });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+adminRouter.post("/kyc/status/:userId", adminOnly, async (req, res) => {
+  try {
+    await connectDB();
+    const { userId } = req.params;
+    const { status, note } = req.body;
+    const allowed = ["pending", "verified", "rejected", "unsubmitted"];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    const reviewerId = getAdminId(req);
+    const update = {
+      kycStatus: {
+        status,
+        note: note || null,
+        reviewedAt: status === "pending" || status === "unsubmitted" ? null : new Date(),
+        reviewedBy: status === "pending" || status === "unsubmitted" ? null : reviewerId,
+      },
+    };
+
+    const user = await User.findByIdAndUpdate(userId, update, { new: true }).lean();
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Notify the user when KYC review is completed
+    if (status === "verified" || status === "rejected") {
+      const noteText = note ? ` Note: ${note}` : "";
+      const message =
+        status === "verified"
+          ? "Your KYC documents have been verified."
+          : `Your KYC was rejected.${noteText} Please upload your documents again.`;
+
+      const notification = await Notification.create({
+        recipient: user._id,
+        sender: reviewerId,
+        message,
+        type: "kyc_status",
+        link: "/settings?tab=legal",
+      });
+
+      await emitNotifications([notification]);
+    }
+
+    res.status(200).json({ message: "KYC status updated", kycStatus: user.kycStatus });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 adminRouter.get("/approved-users", async (req, res) => {
   try {
     await connectDB();
@@ -760,13 +838,14 @@ adminRouter.post("/approve-user/:userId", async (req, res) => {
     try {
       const welcomeMessage = `Welcome to TrustBridge AI! 🎉 Your ${user.role} account has been approved. You can now access all platform features and start connecting with ${user.role === 'entrepreneur' ? 'investors' : 'startups'}. We're excited to have you on board!`;
       
-      await Notification.create({
+      const notification = await Notification.create({
         recipient: user._id,
         sender: adminId, // Admin who approved the user
         message: welcomeMessage,
         type: "approval",
         isRead: false,
       });
+      await emitNotification(notification);
     } catch (notificationError) {
       console.error("Welcome notification creation error:", notificationError);
       // Don't fail the approval if notification creation fails
@@ -1419,7 +1498,10 @@ adminRouter.post("/send-mass-notification", adminOnly, async (req, res) => {
       type: "general",
     }));
 
-    await Notification.insertMany(notifications);
+    const createdNotifications = await Notification.insertMany(notifications);
+    
+    // Emit real-time notifications to all online users
+    await emitNotifications(createdNotifications);
 
     res.status(200).json({
       message: `Notification sent successfully to ${notifications.length} user(s)`,

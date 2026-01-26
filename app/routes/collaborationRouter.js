@@ -2,6 +2,7 @@ import express from "express";
 import CollaborationRequest from "../models/collaborationRequest.js";
 import Notification from "../models/notification.js";
 import { connectDB } from "../config/mongoDBConnection.js";
+import { emitNotification } from "../utils/notificationEmitter.js";
 const collaborationRouter = express.Router();
 
 collaborationRouter.post("/save-request", async (req, res) => {
@@ -25,6 +26,7 @@ collaborationRouter.post("/save-request", async (req, res) => {
       link: `/dashboard/entrepreneur/requests`, // Link to the new requests page
     });
     await notification.save();
+    await emitNotification(notification);
 
     res.status(201).json({ message: "request sent", request });
   } catch (error) {
@@ -77,6 +79,7 @@ collaborationRouter.put(
           link: `/profile/entrepreneur/${request.enter_id}`, 
         });
         await notification.save();
+        await emitNotification(notification);
       }
 
       res.status(201).json({ request, message: "request updated" });

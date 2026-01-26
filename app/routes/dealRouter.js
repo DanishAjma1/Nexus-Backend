@@ -4,6 +4,7 @@ import Deal from "../models/deal.js";
 import User from "../models/user.js";
 import Notification from "../models/notification.js";
 import DealTransaction from "../models/dealTransaction.js";
+import { emitNotification } from "../utils/notificationEmitter.js";
 
 const dealRouter = Router();
 
@@ -35,6 +36,7 @@ dealRouter.post("/create-deal", async (req, res) => {
       link: `/deals/view-deals` 
     });
     await notification.save();
+    await emitNotification(notification);
 
     res.status(201).json({ message: "Deal proposal sent successfully!", deal: newDeal });
   } catch (error) {
@@ -74,6 +76,7 @@ dealRouter.put("/update-deal/:id", async (req, res) => {
           link: role === 'investor' ? `/deals/view-deals` : `/deals/sent-deals`
       });
       await notification.save();
+      await emitNotification(notification);
 
     } else if (action === "accept") {
       // If accepting a negotiation, apply the proposed terms
@@ -98,6 +101,7 @@ dealRouter.put("/update-deal/:id", async (req, res) => {
          link: role === 'investor' ? `/deals/view-deals` : `/deals/sent-deals`
       });
       await notification.save();
+      await emitNotification(notification);
 
     } else if (action === "reject") {
       deal.status = "rejected";
@@ -111,6 +115,7 @@ dealRouter.put("/update-deal/:id", async (req, res) => {
         link: role === 'investor' ? `/deals/view-deals` : `/deals/sent-deals`
       });
       await notification.save();
+      await emitNotification(notification);
     }
 
     await deal.save();

@@ -2,6 +2,7 @@ import { Server } from "socket.io";
 import { createClient } from "redis";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { setOnline } from "../routes/userRouter.js";
+import { initNotificationEmitter } from "./notificationEmitter.js";
 
 export const SocketListeners = (server) => {
   const IO = new Server(server, {
@@ -28,6 +29,10 @@ export const SocketListeners = (server) => {
       await pubClient.del(keys);
       console.log("Cleared stale user mappings on restart");
     }
+
+    // Initialize notification emitter with IO and Redis client
+    initNotificationEmitter(IO, pubClient);
+    console.log(" Notification emitter initialized");
   })();
 
   //  Socket.io connnection
@@ -162,5 +167,5 @@ export const SocketListeners = (server) => {
       }
     });
   });
-  return IO;
+  return { IO, pubClient };
 };

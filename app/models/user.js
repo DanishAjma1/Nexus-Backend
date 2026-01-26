@@ -68,6 +68,18 @@ const UserSchema = mongoose.Schema({
   blockedAt: Date,
   blockedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 
+  // KYC / Legal verification
+  kycStatus: {
+    status: {
+      type: String,
+      enum: ["unsubmitted", "pending", "verified", "rejected"],
+      default: "unsubmitted",
+    },
+    note: String,
+    reviewedAt: Date,
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  },
+
   createdAt: { type: Date, default: Date.now },
 });
 

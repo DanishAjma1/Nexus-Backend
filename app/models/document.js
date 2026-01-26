@@ -17,6 +17,8 @@ const documentSchema = new mongoose.Schema(
         "Company Registration & Legal Docs",
         "Revenue & Traction Report",
         "Use of Funds",
+        "Government ID (CNIC/Passport)",
+        "Selfie Photo",
       ],
     },
     fileUrl: {
