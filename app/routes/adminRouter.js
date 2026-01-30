@@ -438,9 +438,98 @@ adminRouter.get("/get-investor-stages", async (req, res) => {
 // =====================
 //  GET FLAGS SUMMARY
 // =====================
-adminRouter.get("/risk-detection-flags", async (req, res) => {
+adminRouter.get("/risk-detection-flags", adminOnly, async (req, res) => {
   try {
     await connectDB();
+
+    // Get detailed risk events with reasons
+    const detailedRiskEvents = await RiskEvent.find()
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Map event types to detailed reasons
+    const enrichedEvents = detailedRiskEvents.map(event => {
+      let reason = "";
+      switch(event.eventType) {
+        case "failed_login":
+          reason = "Failed login attempt - invalid credentials";
+          break;
+        case "multiple_time_failed_login":
+          reason = "Multiple failed login attempts detected";
+          break;
+        case "multiple_withdraw_attempts":
+          reason = "Multiple withdrawal attempts detected";
+          break;
+        default:
+          reason = "Suspicious activity detected";
+      }
+      return {
+        ...event,
+        reason,
+      };
+    });
+
+    // Get unapproved or rejected users trying to access
+    const unapprovedUsers = await User.find({
+      $or: [
+        { approvalStatus: "rejected" },
+        { approvalStatus: "pending" },
+        { isBlocked: true },
+        { isSuspended: true }
+      ]
+    }).select("email approvalStatus isBlocked isSuspended").lean();
+
+    const unapprovedUserEvents = unapprovedUsers.map(user => ({
+      email: user.email,
+      eventType: "unapproved_login_attempt",
+      reason: user.isBlocked 
+        ? "Account blocked" 
+        : user.isSuspended 
+        ? "Account suspended" 
+        : user.approvalStatus === "rejected" 
+        ? "Account rejected" 
+        : "Account pending approval",
+      riskScore: user.isBlocked || user.approvalStatus === "rejected" ? 30 : 15,
+      createdAt: new Date(),
+      isFraud: user.isBlocked || user.approvalStatus === "rejected"
+    }));
+
+    // Get suspicious email domains
+    const suspiciousEmails = await RiskEvent.aggregate([
+      {
+        $group: {
+          _id: {
+            email: "$email",
+            eventType: "$eventType"
+          },
+          count: { $sum: 1 },
+          riskScore: { $first: "$riskScore" }
+        }
+      },
+      {
+        $match: {
+          count: { $gte: 2 }
+        }
+      },
+      {
+        $project: {
+          email: "$_id.email",
+          eventType: "$_id.eventType",
+          count: 1,
+          riskScore: 1,
+          reason: { $literal: "Suspicious email with multiple risk events" }
+        }
+      }
+    ]);
+
+    // Combine all risk events
+    const allRiskEvents = [
+      ...enrichedEvents,
+      ...unapprovedUserEvents,
+      ...suspiciousEmails
+    ];
+
+    // Summary by event type
     const summary = await RiskEvent.aggregate([
       {
         $group: {
@@ -459,11 +548,17 @@ adminRouter.get("/risk-detection-flags", async (req, res) => {
       },
     ]);
 
-    // monthly count for chart
-    const last12Months = [...Array(12)]
-      .map((_, i) => moment().subtract(i, "months").format("MMM"))
-      .reverse();
+    // Add counts for unapproved users
+    const unapprovedCount = unapprovedUserEvents.length;
+    if (unapprovedCount > 0) {
+      summary.push({
+        eventType: "unapproved_login_attempt",
+        email: "multiple",
+        count: unapprovedCount
+      });
+    }
 
+    // Chart data for last 12 months
     const finalData = await RiskEvent.aggregate([
       {
         $match: {
@@ -489,10 +584,31 @@ adminRouter.get("/risk-detection-flags", async (req, res) => {
       },
     ]);
 
-    res.json({ summary, finalData });
+    res.json({ 
+      summary, 
+      finalData,
+      detailedEvents: allRiskEvents,
+      unapprovedUsers: unapprovedUserEvents,
+      suspiciousEmails: suspiciousEmails
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error fetching risk flags" });
+  }
+});
+
+// Development-only raw events endpoint for debugging (no auth) -- DO NOT enable in production
+adminRouter.get("/risk-detection-debug", async (req, res) => {
+  try {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(403).json({ message: "Not allowed in production" });
+    }
+    await connectDB();
+    const events = await RiskEvent.find().sort({ createdAt: -1 }).limit(200).lean();
+    return res.json({ events });
+  } catch (err) {
+    console.error("Debug risk events error:", err);
+    return res.status(500).json({ message: "Failed to fetch debug events" });
   }
 });
 
@@ -501,6 +617,8 @@ export const logRiskEvent = async ({
   eventType,
   riskScore,
   isFraud = false,
+  reason = "",
+  userId = null,
 }) => {
   try {
     await RiskEvent.create({
@@ -508,6 +626,8 @@ export const logRiskEvent = async ({
       eventType,
       riskScore,
       isFraud,
+      reason,
+      userId,
     });
     console.log("risk detected");
   } catch (err) {
@@ -1441,6 +1561,29 @@ adminRouter.put("/notifications/read-all/:adminId", checkApprovalStatus, async (
     res.status(200).json({ message: "All notifications marked as read" });
   } catch (error) {
     res.status(500).json({ message: "Failed to update notifications", error: error.message });
+  }
+});
+
+adminRouter.delete("/notifications/item/:notificationId", checkApprovalStatus, async (req, res) => {
+  try {
+    const { notificationId } = req.params;
+
+    await connectDB();
+    const notification = await Notification.findById(notificationId);
+
+    if (!notification) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+
+    // Security check: only admin or the recipient can delete
+    if (req.user.role !== "admin" && notification.recipient.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Access denied." });
+    }
+
+    await Notification.deleteOne({ _id: notificationId });
+    res.status(200).json({ message: "Notification deleted" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete notification", error: error.message });
   }
 });
 
