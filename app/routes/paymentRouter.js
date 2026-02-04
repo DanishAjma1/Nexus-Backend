@@ -60,6 +60,7 @@ paymentRouter.post("/create-payment-intent", async (req, res) => {
     const metadata = {
       campaignId: campaignId.toString(),
       campaignTitle: campaign.title,
+      type: "campaign_donation",
     };
 
     if (user) {
