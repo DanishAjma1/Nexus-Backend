@@ -23,7 +23,7 @@ import documentRouter from "./app/routes/documentRouter.js";
 import industryRouter from "./app/routes/industryRouter.js";
 import { startSuspensionChecker } from "./app/utils/suspensionChecker.js";
 import { startCampaignChecker } from "./app/utils/campaignChecker.js";
-// import stripeWebhook from "./app/routes/stripeWebhook.js";
+import stripeWebhook from "./app/routes/stripeWebhook.js";
 const app = express();
 const server = createServer(app);
 
@@ -32,7 +32,7 @@ export { IO, pubClient };
 
 app.use(cookieParser());
 // Mount webhook BEFORE bodyParser because it needs raw body for signature verification
-// app.use("/webhook", stripeWebhook);
+app.use("/webhook", stripeWebhook);
 app.use(bodyParser.json());
 app.use(
   cors({
