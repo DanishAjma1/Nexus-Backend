@@ -24,10 +24,29 @@ import industryRouter from "./app/routes/industryRouter.js";
 import { startSuspensionChecker } from "./app/utils/suspensionChecker.js";
 import { startCampaignChecker } from "./app/utils/campaignChecker.js";
 import stripeWebhook from "./app/routes/stripeWebhook.js";
+import { rateLimit } from "./app/middleware/simpleRateLimit.js";
 const app = express();
 const server = createServer(app);
 
 const { IO, pubClient } = SocketListeners(server);
+
+// Rate limit middleware
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 500, // 500 requests per 15 mins
+  message: "Too many requests from this IP, please try again later."
+});
+
+// Strict limiter for auth routes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20, // 20 login attempts per 15 mins
+  message: "Too many login attempts, please try again later."
+});
+
+app.use(limiter);
+app.use("/auth", authLimiter);
+
 export { IO, pubClient };
 
 app.use(cookieParser());
