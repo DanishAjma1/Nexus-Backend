@@ -487,6 +487,40 @@ authRouter.patch("/update-password/:id", async (req, res) => {
   }
 });
 
+// Update password with current password verification
+authRouter.patch("/update-password-verify/:id", async (req, res) => {
+  try {
+    await connectDB();
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: "currentPassword and newPassword are required" });
+    }
+
+    const user = await User.findById(id).select("+password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const match = await bcrypt.compare(currentPassword, user.password);
+    if (!match) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    const encryptedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = encryptedPassword;
+    await user.save();
+
+    const cleanedUser = typeof user.afterLoggedSafeData === 'function' ? user.afterLoggedSafeData() : user.safeDataForAuth ? user.safeDataForAuth() : null;
+
+    return res.status(200).json({ user: cleanedUser, message: "Password updated successfully." });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Failed to update password." });
+  }
+});
+
 //auth middleware
 
 authRouter.get("/verify", (req, res) => {

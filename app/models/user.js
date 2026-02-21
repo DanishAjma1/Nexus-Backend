@@ -81,6 +81,8 @@ const UserSchema = mongoose.Schema({
   },
 
   createdAt: { type: Date, default: Date.now },
+  // Push subscription for web push
+  pushSubscription: { type: Object, default: null },
 });
 
 UserSchema.methods.safeDataForAuth = function () {

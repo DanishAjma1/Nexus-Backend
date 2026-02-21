@@ -20,6 +20,7 @@ import contactRouter from "./app/routes/contact.js";
 import paymentRouter from "./app/routes/paymentRouter.js";
 import dealRouter from "./app/routes/dealRouter.js";
 import documentRouter from "./app/routes/documentRouter.js";
+import notificationRouter from "./app/routes/notificationRouter.js";
 import industryRouter from "./app/routes/industryRouter.js";
 import { startSuspensionChecker } from "./app/utils/suspensionChecker.js";
 import { startCampaignChecker } from "./app/utils/campaignChecker.js";
@@ -76,6 +77,7 @@ app.use("/contact", contactRouter);
 app.use("/payment", paymentRouter);
 app.use("/deal", dealRouter);
 app.use("/document", documentRouter);
+app.use("/notifications", notificationRouter);
 app.use("/industry", industryRouter);
 
 startSuspensionChecker();
