@@ -105,4 +105,49 @@ export const sendAdminPaymentNotification = (
   });
 };
 
-export default { sendAdminPaymentNotification };
+// Donation receipt sent to supporter/donor
+export const sendDonationReceipt = (toEmail, donorName, campaignTitle, amount, transactionId) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const date = new Date().toLocaleString();
+      const content = `
+        <h2 style="color: #2d3748; text-align: center;">Thank you for your donation!</h2>
+
+        <p style="font-size: 16px; color: #4a5568;">Dear <strong>${donorName || 'Supporter'}</strong>,</p>
+
+        <div style="background-color: #f7fafc; padding: 15px; border-radius: 6px; margin: 20px 0; border: 1px solid #e2e8f0;">
+          <p><strong>Campaign:</strong> ${campaignTitle}</p>
+          <p><strong>Amount:</strong> $${Number(amount).toFixed(2)}</p>
+          <p><strong>Transaction ID:</strong> ${transactionId}</p>
+          <p><strong>Date:</strong> ${date}</p>
+        </div>
+
+        <p style="color: #4a5568; font-size: 15px;">We appreciate your support for ${campaignTitle}. Your contribution helps projects like this continue to grow.</p>
+
+        <p style="color: #4a5568; font-size: 14px;">If you have any questions, reply to this email or contact our support at <a href="mailto:${BRAND_CONFIG.supportEmail}">${BRAND_CONFIG.supportEmail}</a>.</p>
+      `;
+
+      const mailOptions = {
+        from: `${BRAND_CONFIG.name} <${process.env.USER_EMAIL}>`,
+        to: toEmail,
+        subject: `Donation Receipt - ${BRAND_CONFIG.name}`,
+        html: getWrapper(content),
+      };
+
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error("Donation Receipt Error:", error);
+          // don't reject to avoid failing main flow
+          return resolve(null);
+        }
+        console.log(`Donation receipt sent to ${toEmail}`);
+        resolve(info);
+      });
+    } catch (err) {
+      console.error("sendDonationReceipt error:", err);
+      resolve(null);
+    }
+  });
+};
+
+export default { sendAdminPaymentNotification, sendDonationReceipt };

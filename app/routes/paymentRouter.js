@@ -11,7 +11,7 @@ import DealTransaction from "../models/dealTransaction.js";
 import Notification from "../models/notification.js";
 import Card from "../models/card.js";
 import Enterpreneur from "../models/enterpreneur.js";
-import { sendAdminPaymentNotification } from "../utils/paymentMailService.js";
+import { sendAdminPaymentNotification, sendDonationReceipt } from "../utils/paymentMailService.js";
 import { emitNotification, emitNotifications } from "../utils/notificationEmitter.js";
 
 const paymentRouter = Router();
@@ -204,6 +204,18 @@ paymentRouter.post("/confirm-payment", async (req, res) => {
     }
 
     await campaign.save();
+
+    // Send donation receipt to donor (non-blocking)
+    try {
+      const recipientEmail = user ? user.email : guestEmail;
+      const donorName = user ? user.name : guestName;
+      // fire and forget; log errors inside service
+      sendDonationReceipt(recipientEmail, donorName, campaign.title, amount, transaction._id || paymentIntentId)
+        .then(() => console.log(`Donation receipt attempted for ${recipientEmail}`))
+        .catch((e) => console.error(`Donation receipt failed for ${recipientEmail}:`, e));
+    } catch (mailErr) {
+      console.error("Donation mail dispatch error:", mailErr);
+    }
 
     res.status(200).json({
       message: "Payment confirmed and recorded",

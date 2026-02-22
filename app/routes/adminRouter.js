@@ -12,6 +12,7 @@ import User from "../models/user.js";
 import RejectionHistory from "../models/rejectionHistory.js";
 import RiskEvent from "../models/riskEvent.js";
 import Notification from "../models/notification.js";
+import nodemailer from "nodemailer";
 import {
   sendApprovalMail,
   sendRejectionMail,
@@ -1653,6 +1654,46 @@ adminRouter.post("/send-mass-notification", adminOnly, async (req, res) => {
   } catch (error) {
     console.error("Error sending mass notification:", error);
     res.status(500).json({ message: "Failed to send notification", error: error.message });
+  }
+});
+
+// Send email from configured USER_EMAIL (requires USER_EMAIL and USER_PASSWORD in env)
+adminRouter.post("/send-email", adminOnly, async (req, res) => {
+  try {
+    const { to, subject, text, html } = req.body;
+
+    if (!to) {
+      return res.status(400).json({ message: "Recipient (to) is required" });
+    }
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.USER_EMAIL,
+        pass: process.env.USER_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.USER_EMAIL,
+      to,
+      subject: subject || `Message from TrustBridge AI`,
+      text: text || undefined,
+      html: html || undefined,
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error("Send Email Error:", error);
+        return res.status(500).json({ message: "Failed to send email", error: error.message });
+      }
+
+      console.log(`Email sent to ${to}:`, info.response || info);
+      return res.status(200).json({ message: "Email sent", info });
+    });
+  } catch (error) {
+    console.error("/send-email ERROR:", error);
+    res.status(500).json({ message: "Failed to send email", error: error.message });
   }
 });
 
