@@ -180,6 +180,14 @@ investorRouter.put("/update-profile/:id", async (req, res) => {
     const update = {
       ...req.body,
     };
+
+    // Sync country and phoneNumber to User model if present in req.body
+    if (req.body.country || req.body.phoneNumber) {
+      const userUpdate = {};
+      if (req.body.country) userUpdate.country = req.body.country;
+      if (req.body.phoneNumber) userUpdate.phoneNumber = req.body.phoneNumber;
+      await User.findByIdAndUpdate(id, userUpdate);
+    }
     const options = {
       new: true,
       upsert: true,

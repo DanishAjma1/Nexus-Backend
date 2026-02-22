@@ -9,6 +9,8 @@ const UserSchema = mongoose.Schema({
   location: String,
   bio: String,
   isOnline: Boolean,
+  country: String,
+  phoneNumber: String,
 
   // 2FA Fields
   twoFactorEnabled: { type: Boolean, default: false },
