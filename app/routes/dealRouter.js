@@ -8,6 +8,44 @@ import { emitNotification } from "../utils/notificationEmitter.js";
 
 const dealRouter = Router();
 
+// Lead time in days before contract end to notify
+const CONTRACT_END_LEAD_DAYS = 30;
+
+async function checkContractsAndNotify() {
+  try {
+    await connectDB();
+    const now = new Date();
+    const cutoff = new Date(now.getTime() + CONTRACT_END_LEAD_DAYS * 24 * 60 * 60 * 1000);
+
+    const deals = await Deal.find({
+      contractEndDate: { $exists: true, $ne: null, $lte: cutoff },
+      contractEndNotified: false,
+    }).populate('investorId', 'name').populate('entrepreneurId', 'startupName name');
+
+    for (const deal of deals) {
+      const daysLeft = Math.ceil((deal.contractEndDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+      const investorMsg = `Contract for ${deal.entrepreneurId?.startupName || 'the startup'} is ending in ${daysLeft} day(s).`;
+      const entrepreneurMsg = `Contract with ${deal.investorId?.name || 'an investor'} is ending in ${daysLeft} day(s).`;
+
+      const n1 = new Notification({ recipient: deal.investorId._id || deal.investorId, sender: deal.entrepreneurId._id || deal.entrepreneurId, message: investorMsg, type: 'contract_ending', link: `/deals/view-deals` });
+      const n2 = new Notification({ recipient: deal.entrepreneurId._id || deal.entrepreneurId, sender: deal.investorId._id || deal.investorId, message: entrepreneurMsg, type: 'contract_ending', link: `/deals/view-deals` });
+      await n1.save();
+      await n2.save();
+      await emitNotification(n1);
+      await emitNotification(n2);
+
+      deal.contractEndNotified = true;
+      await deal.save();
+    }
+  } catch (err) {
+    console.error('Error checking contract end notifications:', err);
+  }
+}
+
+// Run check on startup and then daily
+setTimeout(() => { checkContractsAndNotify(); }, 5 * 1000);
+setInterval(() => { checkContractsAndNotify(); }, 24 * 60 * 60 * 1000);
+
 // Create a new deal
 dealRouter.post("/create-deal", async (req, res) => {
   try {
@@ -116,6 +154,30 @@ dealRouter.put("/update-deal/:id", async (req, res) => {
       });
       await notification.save();
       await emitNotification(notification);
+
+    } else if (action === "cancel") {
+      // Distinct handling for investor cancellation
+      deal.status = "cancelled";
+      deal.lastActionBy = role;
+
+      const notification = new Notification({
+        recipient: role === 'investor' ? deal.entrepreneurId : deal.investorId,
+        sender: role === 'investor' ? deal.investorId : deal.entrepreneurId,
+        message: `Deal cancelled by ${role}.`,
+        type: "deal_cancelled",
+        link: role === 'investor' ? `/deals/view-deals` : `/deals/sent-deals`
+      });
+      await notification.save();
+      await emitNotification(notification);
+    }
+
+    // If deal has been accepted and payment already released, ensure contract end date is set
+    if (deal.status === 'accepted' && deal.paymentStatus === 'funds_released' && !deal.contractEndDate) {
+      const years = deal.contractDurationYears || 1;
+      const endDate = new Date();
+      endDate.setFullYear(endDate.getFullYear() + Number(years));
+      deal.contractEndDate = endDate;
+      deal.contractEndNotified = false;
     }
 
     await deal.save();
@@ -186,6 +248,34 @@ dealRouter.get("/get-transaction/:dealId", async (req, res) => {
   } catch (error) {
     console.error("Error fetching transaction:", error);
     res.status(500).json({ message: "Failed to fetch transaction." });
+  }
+});
+
+// Update payment status (used by payment flow). Also computes contract end date when final payment released.
+dealRouter.put('/set-payment-status/:id', async (req, res) => {
+  try {
+    await connectDB();
+    const { id } = req.params;
+    const { paymentStatus } = req.body;
+
+    const deal = await Deal.findById(id);
+    if (!deal) return res.status(404).json({ message: 'Deal not found' });
+
+    deal.paymentStatus = paymentStatus;
+
+    if (paymentStatus === 'funds_released' && deal.status === 'accepted' && !deal.contractEndDate) {
+      const years = deal.contractDurationYears || 1;
+      const endDate = new Date();
+      endDate.setFullYear(endDate.getFullYear() + Number(years));
+      deal.contractEndDate = endDate;
+      deal.contractEndNotified = false;
+    }
+
+    await deal.save();
+    res.status(200).json({ message: 'Payment status updated', deal });
+  } catch (err) {
+    console.error('Error updating payment status:', err);
+    res.status(500).json({ message: 'Failed to update payment status' });
   }
 });
 
