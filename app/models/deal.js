@@ -29,13 +29,16 @@ const dealSchema = mongoose.Schema({
   // Exit Strategy
   exitStrategy: { type: String, enum: ['IPO', 'Acquisition', 'Buyback', 'Other'] },
   exitTimeline: { type: String }, // e.g., "3-5 years"
+  contractDurationYears: { type: Number, default: 1 },
+  contractEndDate: { type: Date },
+  contractEndNotified: { type: Boolean, default: false },
 
   // Additional
   additionalTerms: { type: String },
 
   status: { 
     type: String, 
-    enum: ['pending', 'accepted', 'rejected', 'negotiating'], 
+    enum: ['pending', 'accepted', 'rejected', 'negotiating', 'cancelled'], 
     default: 'pending' 
   },
   
