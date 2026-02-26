@@ -26,8 +26,11 @@ import { startSuspensionChecker } from "./app/utils/suspensionChecker.js";
 import { startCampaignChecker } from "./app/utils/campaignChecker.js";
 import stripeWebhook from "./app/routes/stripeWebhook.js";
 import { rateLimit } from "./app/middleware/simpleRateLimit.js";
+import otpRouter from "./app/routes/otpRouter.js";
 const app = express();
 const server = createServer(app);
+
+
 
 const { IO, pubClient } = SocketListeners(server);
 
@@ -79,6 +82,7 @@ app.use("/deal", dealRouter);
 app.use("/document", documentRouter);
 app.use("/notifications", notificationRouter);
 app.use("/industry", industryRouter);
+app.use("/otp", otpRouter);
 
 startSuspensionChecker();
 startCampaignChecker();

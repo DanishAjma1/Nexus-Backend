@@ -1,3 +1,4 @@
+
 // approvalMailService.js
 import dotenv from "dotenv";
 dotenv.config();
@@ -33,7 +34,7 @@ const BRAND_CONFIG = {
 };
 
 // Initialize transporter
-const transporter = nodemailer.createTransport(EMAIL_CONFIG);
+export const transporter = nodemailer.createTransport(EMAIL_CONFIG);
 
 // Email templates
 const EMAIL_TEMPLATES = {
@@ -539,6 +540,38 @@ export const testEmailConnection = () => {
     });
   });
 };
+// Send OTP email (for registration, etc)
+export const sendOtpMail = (email, otp) => {
+  return new Promise((resolve, reject) => {
+    const content = `
+      ${EMAIL_TEMPLATES.getLogo("large")}
+      <h2 style="color: #2d3748; margin-bottom: 20px; text-align: center;">Your Verification Code</h2>
+      ${EMAIL_TEMPLATES.getCard(`
+        <p style=\"color: #4a5568; font-size: 16px; line-height: 1.6;\">
+          Please use the following code to verify your email address:
+        </p>
+        <div style=\"font-size: 2.5em; letter-spacing: 0.2em; color: #2F38C2; text-align: center; margin: 20px 0;\">${otp}</div>
+        <p style=\"color: #718096; font-size: 14px;\">This code will expire in 10 minutes.</p>
+      `)}
+      ${EMAIL_TEMPLATES.getFooter()}
+    `;
+    const mailOptions = {
+      from: `${BRAND_CONFIG.name} <${process.env.USER_EMAIL}>`,
+      to: email,
+      subject: `Your TrustBridge Verification Code`,
+      html: EMAIL_TEMPLATES.getWrapper(content, { backgroundColor: "#f0f9ff", borderColor: "#3182ce" }),
+    };
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error("OTP Email Error:", error);
+        reject(error);
+      } else {
+        console.log("OTP Email sent to:", email);
+        resolve(info);
+      }
+    });
+  });
+};
 
 // Export email service utilities
 export default {
@@ -547,5 +580,6 @@ export default {
   sendAdminNewUserNotification,
   sendUserRegistrationNotification,
   testEmailConnection,
+  sendOtpMail,
   BRAND_CONFIG,
 };
