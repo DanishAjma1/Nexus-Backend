@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 
 const UserSchema = mongoose.Schema({
@@ -37,6 +38,8 @@ const UserSchema = mongoose.Schema({
     rememberTrustedDevices: { type: Boolean, default: true },
     sessionDuration: { type: Number, default: 30 }, // days
   },
+    // Email OTP verification
+  otpVerified: { type: Boolean, default: false },
 
   // Account Approval Fields
   approvalStatus: {
