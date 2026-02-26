@@ -98,14 +98,14 @@ authRouter.post("/register", async (req, res) => {
     }
 
     const encryptedPassword = await bcrypt.hash(req.body.password, 10);
-    const user = new User({ ...req.body, password: encryptedPassword });
-    const userObject = user.safeDataForAuth();
+      const user = new User({ ...req.body, password: encryptedPassword, otpVerified: true });
+      const userObject = user.safeDataForAuth();
 
-    const token = jwt.sign(userObject, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
+      const token = jwt.sign(userObject, process.env.JWT_SECRET, {
+        expiresIn: "1h",
+      });
 
-    await user.save();
+      await user.save();
 
     // Notify admin about new registration (non-blocking)
     try {
