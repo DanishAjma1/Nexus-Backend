@@ -46,16 +46,16 @@ userRouter.get("/platform-stats", async (req, res) => {
     const totalFunded = totalFundedResult[0]?.total || 0;
 
     // Success Rate (Campaigns): (Successful / Total) * 100
-    const campaignsCount = await Campaign.countDocuments({ 
-      status: { $in: ["approved", "active", "completed"] } 
+    const dealsCount = await Deal.countDocuments({ 
+      paymentStatus: "funds_released" 
     });
-    const successfulCampaignsCount = await Campaign.countDocuments({
-      status: { $in: ["approved", "active", "completed"] },
-      $expr: { $gte: ["$raisedAmount", "$goalAmount"] }
+    const successfulDealsCount = await Deal.countDocuments({ 
+      paymentStatus: "funds_released",
+      $expr: { $gte: ["$investmentAmount", "$equityOffered"] }
     });
-    const successRate = campaignsCount > 0 
-      ? Math.round((successfulCampaignsCount / campaignsCount) * 100) 
-      : 95; // Default/Fallback if no campaigns
+    const successRate = dealsCount > 0 
+      ? Math.round((successfulDealsCount / dealsCount) * 100) 
+      : 95; // Default/Fallback if no deals
 
     res.status(200).json({
       totalInvested,
