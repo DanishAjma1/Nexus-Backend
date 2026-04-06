@@ -10,7 +10,7 @@ const investorSchema = mongoose.Schema({
   investmentCriteria: Array,
   successfullExits: Number,
   minTimline: Number,
-  maxTimline: Number,
+  maxTimline: Date,
   access: { type: String, default: false },
   // Approval Fields
   approvalStatus: { 
