@@ -77,10 +77,16 @@ adminRouter.get("/dashboard", async (req, res) => {
     const totalStartups = await User.countDocuments({ role: "entrepreneur" });
     const totalInvestors = await User.countDocuments({ role: "investor" });
     const totalSupporters = await Supporter.countDocuments();
-    const totalCampaigns = await Campaign.countDocuments();
+    const totalCampaigns = await Campaign.countDocuments({ status: { $ne: "deleted" } });
+    const allTimeCampaigns = await Campaign.countDocuments();
+    
+    const fundsRaisedResult = await Campaign.aggregate([
+      { $group: { _id: null, total: { $sum: "$raisedAmount" } } }
+    ]);
+    const totalFundsRaised = fundsRaisedResult[0]?.total || 0;
 
     const flaggedUsers = await User.countDocuments({ isFlagged: true });
-    const flaggedCampaigns = await Campaign.countDocuments({ isFlagged: true });
+    const flaggedCampaigns = await Campaign.countDocuments({ isFlagged: true, status: { $ne: "deleted" } });
     const flaggedCount = flaggedUsers + flaggedCampaigns;
 
     res.status(200).json({
@@ -88,6 +94,8 @@ adminRouter.get("/dashboard", async (req, res) => {
       investors: totalInvestors,
       supporters: totalSupporters,
       campaigns: totalCampaigns,
+      allTimeCampaigns: allTimeCampaigns,
+      totalFundsRaised: totalFundsRaised,
       flagged: flaggedCount,
     });
   } catch (error) {
@@ -217,7 +225,9 @@ adminRouter.post("/campaigns", upload.fields([{ name: "images", maxCount: 3 }, {
 adminRouter.get("/campaigns", async (req, res) => {
   try {
     await connectDB();
-    const campaigns = await Campaign.find().populate("createdBy", "name email");
+    const campaigns = await Campaign.find({
+      status: { $ne: "deleted" },
+    }).populate("createdBy", "name email");
     res.status(200).json(campaigns);
   } catch (error) {
     console.error("FAILED TO FETCH CAMPAIGNS:", error.message);
@@ -229,8 +239,8 @@ adminRouter.delete("/campaigns/:id", async (req, res) => {
   try {
     await connectDB();
     const { id } = req.params;
-    await Campaign.findByIdAndDelete(id);
-    res.status(200).json({ message: "Campaign deleted successfully" });
+    await Campaign.findByIdAndUpdate(id, { status: "deleted" });
+    res.status(200).json({ message: "Campaign deleted (archived) successfully" });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete campaign", error });
   }

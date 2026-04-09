@@ -27,6 +27,10 @@ import { startCampaignChecker } from "./app/utils/campaignChecker.js";
 import stripeWebhook from "./app/routes/stripeWebhook.js";
 import { rateLimit } from "./app/middleware/simpleRateLimit.js";
 import otpRouter from "./app/routes/otpRouter.js";
+import aiChatRouter from "./app/routes/ai/chatRoutes.js";
+import aiCampaignRouter from "./app/routes/ai/campaignRoutes.js";
+import aiRecommendationRouter from "./app/routes/ai/recommendationRoutes.js";
+
 const app = express();
 const server = createServer(app);
 
@@ -83,6 +87,9 @@ app.use("/document", documentRouter);
 app.use("/notifications", notificationRouter);
 app.use("/industry", industryRouter);
 app.use("/otp", otpRouter);
+app.use("/ai/chat", aiChatRouter);
+app.use("/ai/campaign", aiCampaignRouter);
+app.use("/ai/recommendations", aiRecommendationRouter);
 
 startSuspensionChecker();
 startCampaignChecker();
