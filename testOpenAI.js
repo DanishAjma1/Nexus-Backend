@@ -3,14 +3,14 @@ import dotenv from "dotenv";
 dotenv.config(); // load .env
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPEN_AI_API_KEY
 });
 
 async function test() {
   try {
     // Simple test: Ask GPT to respond
     const response = await openai.chat.completions.create({
-      model: "gpt-5-mini",
+      model: "gpt-3.5-turbo",
       messages: [
         { role: "system", content: "You are a helpful assistant." },
         { role: "user", content: "Say hello to me!" }
