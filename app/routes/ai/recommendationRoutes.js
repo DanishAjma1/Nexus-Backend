@@ -6,7 +6,7 @@ import openai from "../../config/ai/openai.js";
 
 const router = express.Router();
 
-const MAX_RECOMMENDATIONS = 6;
+const MAX_RECOMMENDATIONS = 3;
 const AI_SHORTLIST_LIMIT = 40;
 const AI_MODEL = process.env.OPEN_AI_RECOMMENDER_MODEL || "gpt-4o-mini";
 const AI_TIMEOUT_MS = Math.max(1000, Number(process.env.OPEN_AI_TIMEOUT_MS || 12000));
