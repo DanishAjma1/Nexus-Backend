@@ -10,6 +10,8 @@ import multer from "multer";
 import { connectDB } from "../config/mongoDBConnection.js";
 import jwt from "jsonwebtoken";
 import fs from "fs";
+import Notification from "../models/notification.js";
+import { emitNotification } from "../utils/notificationEmitter.js";
 
 const userRouter = Router();
 
@@ -146,6 +148,48 @@ userRouter.get("/get-user-by-id/:id", async (req, res) => {
   } catch (error) {
     console.log(error.message);
     res.status(400).json(error.message);
+  }
+});
+
+// Record a profile visit and notify the profile owner
+userRouter.post("/profile-visit/:id", async (req, res) => {
+  try {
+    const { id } = req.params; // profile owner id
+    const visitor = await getUserFromToken(req);
+    if (!visitor) return res.status(401).json({ message: "Unauthorized" });
+
+    // don't notify for self visits
+    if (visitor._id.toString() === id) {
+      return res.status(200).json({ message: "Self profile visit ignored" });
+    }
+
+    await connectDB();
+
+    const profileOwner = await User.findById(id);
+    if (!profileOwner) return res.status(404).json({ message: "User not found" });
+
+    const message = `${visitor.name} visited your profile`;
+
+    const notification = new Notification({
+      recipient: profileOwner._id,
+      sender: visitor._id,
+      message,
+      type: "Visited Profile",
+      link: `/profile/${visitor._id}`,
+    });
+
+    const saved = await notification.save();
+    // Emit in real-time if possible
+    try {
+      await emitNotification(saved);
+    } catch (emitErr) {
+      console.error("Failed to emit profile-visit notification:", emitErr);
+    }
+
+    res.status(200).json({ message: "Profile visit recorded" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
   }
 });
 

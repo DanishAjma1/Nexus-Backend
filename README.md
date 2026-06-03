@@ -245,5 +245,7 @@ For containerized deployments, a `Dockerfile` can be added mounting `index.js` a
 Please follow conventional commit messages and keep PRs focused on a single concern.
 
 ---
-
-> Built by [DanishAjma1](https://github.com/DanishAjma1)
+Built by:
+- Zain Imran  https://github.com/zainImran864
+- Danish Ajmal  https://github.com/DanishAjma1
+- Umar Nadeem  https://github.com/umar24012003

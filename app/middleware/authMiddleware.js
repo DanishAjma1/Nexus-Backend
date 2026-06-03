@@ -653,10 +653,22 @@ authRouter.post("/enable-2fa", async (req, res) => {
 // New endpoint to disable 2FA
 authRouter.post("/disable-2fa", async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, code, useBackupCode = false } = req.body;
 
-    if (!userId) {
-      return res.status(400).json({ message: "User ID is required" });
+    if (!userId || !code) {
+      return res.status(400).json({ message: "User ID and code are required" });
+    }
+
+    let verified = false;
+
+    if (useBackupCode) {
+      verified = await TwoFactorAuth.verifyBackupCode(userId, code);
+    } else {
+      verified = await TwoFactorAuth.verifyToken(userId, code, null);
+    }
+
+    if (!verified) {
+      return res.status(400).json({ message: "Invalid verification code" });
     }
 
     await TwoFactorAuth.disable2FA(userId);
