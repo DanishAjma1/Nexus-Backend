@@ -1,6 +1,6 @@
 # TrustBridgeAI Backend
 
-A robust, AI-powered Node.js/Express backend for the TrustBridge platform — a full-featured web application that integrates real-time communication, AI assistance, payments, authentication, and push notifications into a single cohesive API.
+A robust, AI-powered Node.js/Express backend for the **TrustBridge** platform — a full-featured web application that integrates real-time communication, AI assistance, payments, authentication, and push notifications into a single cohesive API.
 
 ---
 
@@ -22,7 +22,7 @@ A robust, AI-powered Node.js/Express backend for the TrustBridge platform — a 
 
 ## Overview
 
-TrustBridgeAI Backend serves as the server-side engine for the TrustBridge web application. It exposes a RESTful API and a real-time WebSocket layer, handling everything from user authentication and AI-driven features to video calling, payments, and two-factor security.
+TrustBridgeAI Backend serves as the server-side engine for the TrustBridge web application (also referred to as "Nexus"). It exposes a RESTful API and a real-time WebSocket layer, handling everything from user authentication and AI-driven features to video calling, payments, and two-factor security.
 
 ---
 
@@ -56,7 +56,7 @@ TrustBridgeAI Backend serves as the server-side engine for the TrustBridge web a
 - **Authentication & Security** — JWT-based auth, Auth0 OIDC integration, bcrypt password hashing, and TOTP-based two-factor authentication (2FA) with QR code generation.
 - **Payments** — Stripe integration for subscriptions or one-time payments.
 - **Email** — Transactional email delivery via Nodemailer.
-- **File Uploads** — Multer-handled file uploads stored in the uploads/ directory.
+- **File Uploads** — Multer-handled file uploads stored in the `uploads/` directory.
 - **Push Notifications** — Web Push API support for browser-based push notifications.
 - **Google Calendar** — Integration with the Google APIs for calendar functionality.
 - **Phone Validation** — libphonenumber-js for international phone number parsing and validation.
@@ -72,10 +72,10 @@ TrustBridgeAI-Backend/
 │   └── workflows/          # CI/CD GitHub Actions workflows
 ├── app/                    # Core application logic
 │   ├── routes/             # Express route definitions
+│   ├── controllers/        # Route handler logic
 │   ├── models/             # Mongoose data models
 │   ├── middleware/         # Auth guards, error handling, etc.
-│   ├── utils/              # Shared helpers and background jobs
-│   └── config/             # Service configs (Agora, etc.)
+│   └── services/           # Business logic / third-party integrations
 ├── uploads/                # Uploaded files (served statically)
 ├── index.js                # App entry point
 ├── loadEnv.js              # Environment variable loader
@@ -114,7 +114,7 @@ npm install
 
 **3. Set up environment variables**
 
-Copy the example below into a .env file at the project root and fill in your values (see [Environment Variables](#environment-variables)).
+Copy the example below into a `.env` file at the project root and fill in your values (see [Environment Variables](#environment-variables)).
 
 **4. (Optional) Seed the database**
 
@@ -134,7 +134,7 @@ The server will start with hot-reload via Nodemon.
 
 ## Environment Variables
 
-Create a .env file in the project root. Typical variables include:
+Create a `.env` file in the project root. The following variables are required:
 
 ```env
 # Server
@@ -184,18 +184,20 @@ VAPID_PRIVATE_KEY=your_vapid_private_key
 VAPID_EMAIL=mailto:your@email.com
 ```
 
+> **Note:** Never commit your `.env` file. It is already listed in `.gitignore`.
+
 ---
 
 ## Available Scripts
 
 | Script | Command | Description |
 |---|---|---|
-| Development | npm run dev | Starts server with Nodemon (hot reload) |
-| Debug | npm run debug | Starts server with Node inspector attached |
-| Production | npm start | Starts server with plain Node |
-| Seed DB | node seedIndustries.js | Seeds industry categories into MongoDB |
-| Test OpenAI | node testOpenAI.js | Runs OpenAI integration test |
-| Debug OpenAI | node debugOpenAI.js | Runs OpenAI debug utility |
+| Development | `npm run dev` | Starts server with Nodemon (hot reload) |
+| Debug | `npm run debug` | Starts server with Node inspector attached |
+| Production | `npm start` | Starts server with plain Node |
+| Seed DB | `node seedIndustries.js` | Seeds industry categories into MongoDB |
+| Test OpenAI | `node testOpenAI.js` | Runs OpenAI integration test |
+| Debug OpenAI | `node debugOpenAI.js` | Runs OpenAI debug utility |
 
 ---
 
@@ -221,29 +223,28 @@ The backend is organized around the following functional modules:
 
 ## Deployment
 
-The repository includes a .github/workflows/ directory for CI/CD automation. For manual deployment:
+The repository includes a `.github/workflows/` directory for CI/CD automation. For manual deployment:
 
 1. Set all environment variables on your server or hosting platform.
-2. Run npm install --production.
-3. Start the server with npm start.
+2. Run `npm install --production`.
+3. Start the server with `npm start`.
 4. Ensure MongoDB and Redis are reachable from your server.
 
-For containerized deployments, a Dockerfile can be added with node index.js as the entrypoint.
+For containerized deployments, a `Dockerfile` can be added mounting `index.js` as the entrypoint with `node index.js`.
 
 ---
 
 ## Contributing
 
 1. Fork the repository.
-2. Create a feature branch: git checkout -b feature/your-feature-name
-3. Commit your changes: git commit -m "feat: add your feature"
-4. Push to your fork: git push origin feature/your-feature-name
+2. Create a feature branch: `git checkout -b feature/your-feature-name`
+3. Commit your changes: `git commit -m "feat: add your feature"`
+4. Push to your fork: `git push origin feature/your-feature-name`
 5. Open a Pull Request.
 
 Please follow conventional commit messages and keep PRs focused on a single concern.
 
 ---
-
 Built by:
 - Zain Imran  https://github.com/zainImran864
 - Danish Ajmal  https://github.com/DanishAjma1
