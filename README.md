@@ -246,6 +246,6 @@ Please follow conventional commit messages and keep PRs focused on a single conc
 
 ---
 Built by:
-- Zain Imran  https://github.com/zainImran864
 - Danish Ajmal  https://github.com/DanishAjma1
+- Zain Imran  https://github.com/zainImran864
 - Umar Nadeem  https://github.com/umar24012003
